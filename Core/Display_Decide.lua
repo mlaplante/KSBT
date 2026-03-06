@@ -14,40 +14,6 @@ TSBT.Core.Display = TSBT.Core.Display or {}
 local Display = TSBT.Core.Display
 local Addon   = TSBT.Addon
 
-local function ResolveFontForArea(areaName)
-    local profile = TSBT.db and TSBT.db.profile
-    if not profile then
-        return "Fonts\\FRIZQT__.TTF", 18, "OUTLINE", 1.0
-    end
-
-    local general = (profile.general and profile.general.font) or {}
-    local area = (profile.scrollAreas and profile.scrollAreas[areaName]) or nil
-    local areaFont = area and area.font or nil
-
-    local useGlobal = true
-    if areaFont and areaFont.useGlobal == false then
-        useGlobal = false
-    end
-
-    local faceKey    = (not useGlobal and areaFont and areaFont.face)    or general.face or "Friz Quadrata TT"
-    local sizeVal    = (not useGlobal and areaFont and areaFont.size)    or general.size or 18
-    local outlineKey = (not useGlobal and areaFont and areaFont.outline) or general.outline or "Thin"
-    local alphaVal   = (not useGlobal and areaFont and areaFont.alpha)   or general.alpha or 1.0
-
-    local LSM = LibStub("LibSharedMedia-3.0", true)
-    local fontFace = "Fonts\\FRIZQT__.TTF" -- fallback
-    if LSM and faceKey then
-        local fetched = LSM:Fetch("font", faceKey)
-        if fetched then fontFace = fetched end
-    end
-
-    local fontSize = tonumber(sizeVal) or 18
-    local outlineFlag = TSBT.OUTLINE_STYLES and TSBT.OUTLINE_STYLES[outlineKey] or "OUTLINE"
-    local fontAlpha = tonumber(alphaVal) or 1.0
-
-    return fontFace, fontSize, outlineFlag, fontAlpha
-end
-
 function Display:Enable()
     if Addon and Addon.DebugPrint then
         Addon:DebugPrint(1, "Display:Enable()")
@@ -89,7 +55,7 @@ function Display:Emit(areaName, text, color, meta)
         return
     end
 
-    local fontFace, fontSize, outlineFlag, fontAlpha = ResolveFontForArea(areaName)
+    local fontFace, fontSize, outlineFlag, fontAlpha = TSBT.ResolveFontForArea(areaName)
     local anchorH = (area.alignment == "Left" and "LEFT") or (area.alignment == "Right" and "RIGHT") or "CENTER"
     local dirMult = (area.direction == "Down") and -1 or 1
     local speed = tonumber(area.animSpeed) or 1.0

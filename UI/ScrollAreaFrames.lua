@@ -57,7 +57,7 @@ end
 -- Scroll areas may override the global font. This is used by the test
 -- animation now and will be consumed by the runtime display engine later.
 ------------------------------------------------------------------------
-local function ResolveFontForArea(areaName)
+function TSBT.ResolveFontForArea(areaName)
     local profile = TSBT.db and TSBT.db.profile
     if not profile then
         return "Fonts\\FRIZQT__.TTF", 18, "OUTLINE", 1.0
@@ -346,7 +346,7 @@ function TSBT.TestScrollArea(areaName)
         return
     end
 
-    local fontFace, fontSize, outlineFlag, fontAlpha = ResolveFontForArea(areaName)
+    local fontFace, fontSize, outlineFlag, fontAlpha = TSBT.ResolveFontForArea(areaName)
 
     -- Determine alignment anchor point
     local alignmentMap = {
@@ -404,7 +404,7 @@ local function FireAllAreasOnce()
                       and TSBT.db.profile.scrollAreas[areaName]
         
         if area then
-            local fontFace, fontSize, outlineFlag, fontAlpha = ResolveFontForArea(areaName)
+            local fontFace, fontSize, outlineFlag, fontAlpha = TSBT.ResolveFontForArea(areaName)
 
             -- Determine alignment anchor point
             local alignmentMap = {
