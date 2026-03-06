@@ -217,6 +217,12 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
             TSBT._testParentFrames[self.areaName]:Hide()
             TSBT._testParentFrames[self.areaName] = nil
         end
+        -- Also clear the FontString pool for this area: pooled FS are parented to the old
+        -- (now hidden) frame and cannot be reparented in WoW. Fresh FS will be created on
+        -- the new parent frame next time FireTestText is called for this area.
+        if _fsPool and _fsPool[self.areaName] then
+            _fsPool[self.areaName] = nil
+        end
 
         -- Notify AceConfig to refresh sliders if the config dialog is open
         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
