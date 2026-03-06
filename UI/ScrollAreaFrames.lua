@@ -143,7 +143,7 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     frame:RegisterForDrag("LeftButton")
 
     -- Store references for drag handler
-    frame.areaName = areaName
+    frame.areaName = areaName  -- used by OnDragStop to key the test parent frame cache
 
     frame:SetScript("OnDragStart", function(self)
         self:StartMoving()
@@ -184,11 +184,11 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
                 newXOffset, newYOffset))
         end
 
-        -- Release stale test parent frame for this area (position key changed, name is stable)
+        -- If a parent frame exists for this area, it will be repositioned on next FireTestText call.
+        -- Just nil the entry so FireTestText re-creates it at the new position.
+        -- Note: any in-flight animations on this frame complete naturally (animFrames have own lifecycle).
         if TSBT._testParentFrames and TSBT._testParentFrames[self.areaName] then
-            local old = TSBT._testParentFrames[self.areaName]
-            old:Hide()
-            old:SetParent(nil)
+            TSBT._testParentFrames[self.areaName]:Hide()
             TSBT._testParentFrames[self.areaName] = nil
         end
 
@@ -530,7 +530,7 @@ function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
                            fontAlpha, anchorH, dirMult, duration, color)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
-    local parentKey = areaName or string.format("test_%.0f_%.0f", area.xOffset, area.yOffset)
+    local parentKey = areaName
     
     if not TSBT._testParentFrames then
         TSBT._testParentFrames = {}
