@@ -1,27 +1,27 @@
 ------------------------------------------------------------------------
 -- Kroth's Scrolling Battle Text - Core Orchestrator (Skeleton)
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-local Core  = TSBT.Core
-local Addon = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+local Core  = KSBT.Core
+local Addon = KSBT.Addon
 
 Core._initialized = Core._initialized or false
 Core._enabled     = Core._enabled or false
 
 function Core:IsMasterEnabled()
-    return TSBT.db
-       and TSBT.db.profile
-       and TSBT.db.profile.general
-       and TSBT.db.profile.general.enabled == true
+    return KSBT.db
+       and KSBT.db.profile
+       and KSBT.db.profile.general
+       and KSBT.db.profile.general.enabled == true
 end
 
 function Core:IsCombatOnlyEnabled()
-    return TSBT.db
-       and TSBT.db.profile
-       and TSBT.db.profile.general
-       and TSBT.db.profile.general.combatOnly == true
+    return KSBT.db
+       and KSBT.db.profile
+       and KSBT.db.profile.general
+       and KSBT.db.profile.general.combatOnly == true
 end
 
 function Core:ShouldEmitNow()
@@ -35,9 +35,9 @@ end
 -- Attempt to suppress Blizzard floating combat text via CVars.
 -- NOTE: Blizzard may lock/ignore these on some client builds.
 function Core:ApplyBlizzardFCTCVars()
-    if not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.general then return end
+    if not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.general then return end
 
-    local g = TSBT.db.profile.general
+    local g = KSBT.db.profile.general
 
     -- Only apply suppression when KSBT is enabled (your requested UX).
     if not g.enabled then return end

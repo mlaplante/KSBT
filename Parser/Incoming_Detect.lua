@@ -11,12 +11,12 @@
 --   - No GUID usage, no attribution, no aggregation.
 --   - Designed to avoid secret-value landmines by never touching identity APIs.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Parser = TSBT.Parser or {}
-TSBT.Parser.Incoming = TSBT.Parser.Incoming or {}
-local Incoming = TSBT.Parser.Incoming
-local Addon    = TSBT.Addon
+KSBT.Parser = KSBT.Parser or {}
+KSBT.Parser.Incoming = KSBT.Parser.Incoming or {}
+local Incoming = KSBT.Parser.Incoming
+local Addon    = KSBT.Addon
 
 Incoming._enabled = Incoming._enabled or false
 Incoming._frame   = Incoming._frame or nil
@@ -82,7 +82,7 @@ function Incoming:Enable()
         local evt = evtOrErr
         if not evt then return end
 
-        local probe = TSBT.Core and TSBT.Core.IncomingProbe
+        local probe = KSBT.Core and KSBT.Core.IncomingProbe
         if probe and probe.OnIncomingDetected then
             probe:OnIncomingDetected(evt)
         end

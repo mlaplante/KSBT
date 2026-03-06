@@ -4,14 +4,14 @@
 -- Each tab is constructed in ConfigTabs.lua and assembled here.
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
-local Addon = TSBT.Addon
+local ADDON_NAME, KSBT = ...
+local Addon = KSBT.Addon
 local LSM = LibStub("LibSharedMedia-3.0")
 
 ------------------------------------------------------------------------
 -- Helper: Build a dropdown values table from a key/value table
 ------------------------------------------------------------------------
-function TSBT.ValuesFromKeys(tbl)
+function KSBT.ValuesFromKeys(tbl)
     local out = {}
     for k, _ in pairs(tbl) do
         out[k] = k
@@ -22,10 +22,10 @@ end
 ------------------------------------------------------------------------
 -- Helper: Get available scroll area names from current profile
 ------------------------------------------------------------------------
-function TSBT.GetScrollAreaNames()
+function KSBT.GetScrollAreaNames()
     local names = {}
-    if TSBT.db and TSBT.db.profile and TSBT.db.profile.scrollAreas then
-        for name, _ in pairs(TSBT.db.profile.scrollAreas) do
+    if KSBT.db and KSBT.db.profile and KSBT.db.profile.scrollAreas then
+        for name, _ in pairs(KSBT.db.profile.scrollAreas) do
             names[name] = name
         end
     end
@@ -37,7 +37,7 @@ end
 -- Returns a table suitable for AceConfig select "values".
 -- Uses standard select type â€” no LSM30_Font widget required.
 ------------------------------------------------------------------------
-function TSBT.BuildFontDropdown()
+function KSBT.BuildFontDropdown()
     local fonts = {}
     if LSM then
         for _, name in ipairs(LSM:List("font")) do
@@ -57,7 +57,7 @@ end
 -- Uses standard select type â€” no LSM30_Sound widget required.
 -- Always includes a "None" option at the top.
 ------------------------------------------------------------------------
-function TSBT.BuildSoundDropdown()
+function KSBT.BuildSoundDropdown()
     local sounds = { ["None"] = "None" }
     if LSM then
         for _, name in ipairs(LSM:List("sound")) do
@@ -71,7 +71,7 @@ end
 -- Helper: Play an LSM sound by key name
 -- Used by "Test" buttons next to sound dropdowns.
 ------------------------------------------------------------------------
-function TSBT.PlayLSMSound(soundKey)
+function KSBT.PlayLSMSound(soundKey)
     if not soundKey or soundKey == "None" then return end
     if not LSM then return end
     local path = LSM:Fetch("sound", soundKey)
@@ -85,9 +85,9 @@ end
 -- Called once during OnInitialize.
 -- Profiles tab is injected by Init.lua after DB creation.
 ------------------------------------------------------------------------
-function TSBT.BuildOptionsTable()
+function KSBT.BuildOptionsTable()
     -- Ensure ConfigTabs has been loaded
-    assert(TSBT.BuildTab_General, "ConfigTabs.lua must be loaded before Config.lua")
+    assert(KSBT.BuildTab_General, "ConfigTabs.lua must be loaded before Config.lua")
 
     local options = {
         type = "group",
@@ -97,42 +97,42 @@ function TSBT.BuildOptionsTable()
             ----------------------------------------------------------------
             -- Tab 1: General
             ----------------------------------------------------------------
-            general = TSBT.BuildTab_General(),
+            general = KSBT.BuildTab_General(),
 
             ----------------------------------------------------------------
             -- Tab 2: Scroll Areas
             ----------------------------------------------------------------
-            scrollAreas = TSBT.BuildTab_ScrollAreas(),
+            scrollAreas = KSBT.BuildTab_ScrollAreas(),
 
             ----------------------------------------------------------------
             -- Tab 3: Incoming
             ----------------------------------------------------------------
-            incoming = TSBT.BuildTab_Incoming(),
+            incoming = KSBT.BuildTab_Incoming(),
 
             ----------------------------------------------------------------
             -- Tab 4: Outgoing
             ----------------------------------------------------------------
-            outgoing = TSBT.BuildTab_Outgoing(),
+            outgoing = KSBT.BuildTab_Outgoing(),
 
             ----------------------------------------------------------------
             -- Tab 5: Pets
             ----------------------------------------------------------------
-            pets = TSBT.BuildTab_Pets(),
+            pets = KSBT.BuildTab_Pets(),
 
             ----------------------------------------------------------------
             -- Tab 6: Spam Control
             ----------------------------------------------------------------
-            spamControl = TSBT.BuildTab_SpamControl(),
+            spamControl = KSBT.BuildTab_SpamControl(),
 
             ----------------------------------------------------------------
             -- Tab 7: Cooldowns
             ----------------------------------------------------------------
-            cooldowns = TSBT.BuildTab_Cooldowns(),
+            cooldowns = KSBT.BuildTab_Cooldowns(),
 
             ----------------------------------------------------------------
             -- Tab 8: Media
             ----------------------------------------------------------------
-            media = TSBT.BuildTab_Media(),
+            media = KSBT.BuildTab_Media(),
 
             ----------------------------------------------------------------
             -- Profiles tab placeholder (injected by Init.lua after DB init)
@@ -163,7 +163,7 @@ local BORDER_SIZE_SHARP = 2
 local BORDER_SIZE_ROUNDED = 20  -- Thicker border with better rounding visibility
 local BORDER_INSET = 3         -- No gap between blue frame and border
 
-function TSBT.ApplyStrikeSilverStyling()
+function KSBT.ApplyStrikeSilverStyling()
     if strikeSilverHooked then return end
     strikeSilverHooked = true
 
@@ -179,8 +179,8 @@ function TSBT.ApplyStrikeSilverStyling()
         if not frame or not frame.frame then return end
 
         local f = frame.frame  -- The actual WoW frame widget
-        local dk = TSBT.COLORS.DARK
-        local border = TSBT.COLORS.BORDER
+        local dk = KSBT.COLORS.DARK
+        local border = KSBT.COLORS.BORDER
 
         -- Apply Strike Silver backdrop to main frame
         if not f.tsbtStyled then
@@ -211,9 +211,9 @@ function TSBT.ApplyStrikeSilverStyling()
                     if region:IsObjectType("FontString") then
                         local text = region:GetText()
                         if text and text:find("KrothSBT") then
-                            region:SetTextColor(TSBT.COLORS.TEXT_LIGHT.r,
-                                                TSBT.COLORS.TEXT_LIGHT.g,
-                                                TSBT.COLORS.TEXT_LIGHT.b, 1.0)
+                            region:SetTextColor(KSBT.COLORS.TEXT_LIGHT.r,
+                                                KSBT.COLORS.TEXT_LIGHT.g,
+                                                KSBT.COLORS.TEXT_LIGHT.b, 1.0)
                         end
                     end
                 end
@@ -223,19 +223,19 @@ function TSBT.ApplyStrikeSilverStyling()
         end
 
         -- Style the tab buttons each time Open fires
-        TSBT.StyleTabButtons(frame)
+        KSBT.StyleTabButtons(frame)
 
         -- Style inner content containers (section borders, tab bar, etc.)
-        TSBT.StyleInnerContainers(frame)
+        KSBT.StyleInnerContainers(frame)
 
         -- Ensure the Cooldowns drag/drop overlay is ONLY visible on the Cooldowns tab.
-        if TSBT.HookCooldownOverlayTabSwitch then
-            TSBT.HookCooldownOverlayTabSwitch(frame)
+        if KSBT.HookCooldownOverlayTabSwitch then
+            KSBT.HookCooldownOverlayTabSwitch(frame)
         end
 
         -- Keep confirmation popups above the AceConfig window.
-        if TSBT.EnsurePopupsOnTop then
-            TSBT.EnsurePopupsOnTop(f)
+        if KSBT.EnsurePopupsOnTop then
+            KSBT.EnsurePopupsOnTop(f)
         end
     end)
 end
@@ -244,7 +244,7 @@ end
 -- Style tab buttons with Strike Silver colors
 -- Finds the AceGUI TabGroup child and applies accent color to active tab.
 ------------------------------------------------------------------------
-function TSBT.StyleTabButtons(aceFrame)
+function KSBT.StyleTabButtons(aceFrame)
     if not aceFrame then return end
 
     -- The AceGUI Frame widget has children; the first is typically the TabGroup
@@ -260,9 +260,9 @@ function TSBT.StyleTabButtons(aceFrame)
 
     if not tabGroup or not tabGroup.tabs then return end
 
-    local accent = TSBT.COLORS.ACCENT
-    local tabInactive = TSBT.COLORS.TAB_INACTIVE
-    local border = TSBT.COLORS.BORDER
+    local accent = KSBT.COLORS.ACCENT
+    local tabInactive = KSBT.COLORS.TAB_INACTIVE
+    local border = KSBT.COLORS.BORDER
 
     -- Style tab button backgrounds and text
     for _, tab in ipairs(tabGroup.tabs) do
@@ -309,7 +309,7 @@ function TSBT.StyleTabButtons(aceFrame)
             insets   = { left = BORDER_INSET, right = BORDER_INSET, 
                          top = BORDER_INSET, bottom = BORDER_INSET },
         })
-        local dk = TSBT.COLORS.DARK
+        local dk = KSBT.COLORS.DARK
         tabBorder:SetBackdropColor(dk.r, dk.g, dk.b, 0.8)
         tabBorder:SetBackdropBorderColor(border.r, border.g, border.b, 1.0)
     end
@@ -320,11 +320,11 @@ end
 -- Recursively walks AceGUI children to find InlineGroup/BlizOptionsGroup
 -- and applies consistent chrome borders.
 ------------------------------------------------------------------------
-function TSBT.StyleInnerContainers(aceFrame)
+function KSBT.StyleInnerContainers(aceFrame)
     if not aceFrame or not aceFrame.children then return end
 
-    local dk = TSBT.COLORS.DARK
-    local border = TSBT.COLORS.BORDER
+    local dk = KSBT.COLORS.DARK
+    local border = KSBT.COLORS.BORDER
 
     local function styleChild(widget)
         -- InlineGroup and similar containers have a .border frame
@@ -383,7 +383,7 @@ local function RaiseStaticPopupFrame(popupFrame, anchorFrame)
     end
 end
 
-function TSBT.EnsurePopupsOnTop(anchorFrame)
+function KSBT.EnsurePopupsOnTop(anchorFrame)
     if popupsOnTopHooked then return end
     popupsOnTopHooked = true
 
@@ -405,10 +405,10 @@ end
 -- explicitly hide it when the user is not on the Cooldowns tab.
 ------------------------------------------------------------------------
 
-TSBT.UI = TSBT.UI or {}
+KSBT.UI = KSBT.UI or {}
 
-function TSBT.SetCooldownOverlayVisible(isVisible)
-    local o = TSBT.UI and TSBT.UI.CooldownDropOverlay
+function KSBT.SetCooldownOverlayVisible(isVisible)
+    local o = KSBT.UI and KSBT.UI.CooldownDropOverlay
     if not o then return end
     if isVisible then
         o:Show()
@@ -419,7 +419,7 @@ end
 
 local cooldownOverlayTabHooked = false
 
-function TSBT.HookCooldownOverlayTabSwitch(aceFrame)
+function KSBT.HookCooldownOverlayTabSwitch(aceFrame)
     if cooldownOverlayTabHooked then return end
     if not aceFrame or not aceFrame.children then return end
 
@@ -434,7 +434,7 @@ function TSBT.HookCooldownOverlayTabSwitch(aceFrame)
     cooldownOverlayTabHooked = true
 
     local function update(selected)
-        TSBT.SetCooldownOverlayVisible(selected == "cooldowns")
+        KSBT.SetCooldownOverlayVisible(selected == "cooldowns")
     end
 
     if tabGroup.SelectTab then
@@ -455,7 +455,7 @@ end
 
 local cooldownDropOverlay = nil
 
-function TSBT.CreateCooldownDropOverlay()
+function KSBT.CreateCooldownDropOverlay()
     local ACD = LibStub("AceConfigDialog-3.0", true)
     if not ACD then return end
     
@@ -480,10 +480,10 @@ function TSBT.CreateCooldownDropOverlay()
     
     -- Create overlay if it doesn't exist
     if not cooldownDropOverlay then
-        local accent = TSBT.COLORS.ACCENT
-        local dk = TSBT.COLORS.DARK
+        local accent = KSBT.COLORS.ACCENT
+        local dk = KSBT.COLORS.DARK
         
-        cooldownDropOverlay = CreateFrame("Frame", "TSBT_CooldownDropOverlay", contentFrame, "BackdropTemplate")
+        cooldownDropOverlay = CreateFrame("Frame", "KSBT_CooldownDropOverlay", contentFrame, "BackdropTemplate")
         cooldownDropOverlay:SetSize(520, 70)
         cooldownDropOverlay:EnableMouse(true)
         
@@ -557,8 +557,8 @@ function TSBT.CreateCooldownDropOverlay()
                 
                 if spellID and spellID > 0 then
                     -- Add to tracking
-                    if not TSBT.db.profile.cooldowns.tracked[spellID] then
-                        TSBT.db.profile.cooldowns.tracked[spellID] = true
+                    if not KSBT.db.profile.cooldowns.tracked[spellID] then
+                        KSBT.db.profile.cooldowns.tracked[spellID] = true
                         
                         -- Get spell info
                         local name, icon
@@ -590,27 +590,27 @@ function TSBT.CreateCooldownDropOverlay()
                         end)
                         
                         local displayName = name and (name .. " (ID: " .. spellID .. ")") or ("Spell ID: " .. spellID)
-                        TSBT.Addon:Print("Now tracking: " .. displayName)
+                        KSBT.Addon:Print("Now tracking: " .. displayName)
                         
                         -- Refresh UI
                         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                     else
-                        TSBT.Addon:Print("Spell ID " .. spellID .. " is already being tracked.")
+                        KSBT.Addon:Print("Spell ID " .. spellID .. " is already being tracked.")
                     end
                 else
-                    TSBT.Addon:Print("Could not resolve spell ID. Try dragging from action bar.")
+                    KSBT.Addon:Print("Could not resolve spell ID. Try dragging from action bar.")
                 end
                 ClearCursor()
             elseif cursorType == "petaction" then
                 ClearCursor()
-                TSBT.Addon:Print("Pet abilities cannot be tracked.")
+                KSBT.Addon:Print("Pet abilities cannot be tracked.")
             elseif cursorType == "item" then
                 -- Item drag: store as string key to avoid ID collisions with spells
                 local itemID = id
                 if itemID and itemID > 0 then
                     local key = "item:" .. itemID
-                    if not TSBT.db.profile.cooldowns.tracked[key] then
-                        TSBT.db.profile.cooldowns.tracked[key] = true
+                    if not KSBT.db.profile.cooldowns.tracked[key] then
+                        KSBT.db.profile.cooldowns.tracked[key] = true
 
                         -- Get item info (may be nil if not cached yet)
                         local name, icon
@@ -638,12 +638,12 @@ function TSBT.CreateCooldownDropOverlay()
                         end)
 
                         local displayName = name and (name .. " (Item ID: " .. itemID .. ")") or ("Item ID: " .. itemID)
-                        TSBT.Addon:Print("Now tracking: " .. displayName)
+                        KSBT.Addon:Print("Now tracking: " .. displayName)
 
                         -- Refresh UI
                         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                     else
-                        TSBT.Addon:Print("Item ID " .. itemID .. " is already being tracked.")
+                        KSBT.Addon:Print("Item ID " .. itemID .. " is already being tracked.")
                     end
                 end
                 ClearCursor()
@@ -664,7 +664,7 @@ function TSBT.CreateCooldownDropOverlay()
     end
 
     -- Expose a stable reference for tab switching control
-    TSBT.UI.CooldownDropOverlay = cooldownDropOverlay
+    KSBT.UI.CooldownDropOverlay = cooldownDropOverlay
     
     -- Position the overlay: Should appear below "Tracked Spells" header
     -- Approximate Y offset from top of content area
@@ -673,13 +673,13 @@ function TSBT.CreateCooldownDropOverlay()
 	
     
     -- Default to hidden; tab hook (or this function) will show only on "cooldowns".
-    TSBT.SetCooldownOverlayVisible(false)
+    KSBT.SetCooldownOverlayVisible(false)
 
     local selected = tabGroup and tabGroup.status and tabGroup.status.selected
-    TSBT.SetCooldownOverlayVisible(selected == "cooldowns")
+    KSBT.SetCooldownOverlayVisible(selected == "cooldowns")
 end
 
-function TSBT.HideCooldownDropOverlay()
+function KSBT.HideCooldownDropOverlay()
     if cooldownDropOverlay then
         cooldownDropOverlay:Hide()
     end

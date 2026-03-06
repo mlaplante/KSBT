@@ -10,12 +10,12 @@
 --   - This is NOT the engine. No attribution beyond player-only flag filtering.
 --   - No spam control, merging, throttling, or learning.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-TSBT.Core.OutgoingProbe = TSBT.Core.OutgoingProbe or {}
-local Probe = TSBT.Core.OutgoingProbe
-local Addon = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+KSBT.Core.OutgoingProbe = KSBT.Core.OutgoingProbe or {}
+local Probe = KSBT.Core.OutgoingProbe
+local Addon = KSBT.Addon
 
 -- Internal state
 Probe._initialized = Probe._initialized or false
@@ -43,17 +43,17 @@ local function FlushMerge(key)
     _mergeState[key] = nil
 
     local text = entry.text
-    local db = TSBT.db and TSBT.db.profile
+    local db = KSBT.db and KSBT.db.profile
     local showCount = db and db.spamControl and db.spamControl.merging
                       and db.spamControl.merging.showCount
     if entry.count > 1 and showCount then
         text = text .. " x" .. entry.count
     end
 
-    if TSBT.DisplayText then
-        TSBT.DisplayText(entry.area, text, entry.color, entry.meta)
-    elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-        TSBT.Core.Display:Emit(entry.area, text, entry.color, entry.meta)
+    if KSBT.DisplayText then
+        KSBT.DisplayText(entry.area, text, entry.color, entry.meta)
+    elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
+        KSBT.Core.Display:Emit(entry.area, text, entry.color, entry.meta)
     end
 end
 
@@ -61,7 +61,7 @@ end
 -- baseText: the raw number string used as merge identity key (no "!" or spell name)
 -- text: the fully composed display string
 local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isReplay)
-    local db = TSBT.db and TSBT.db.profile
+    local db = KSBT.db and KSBT.db.profile
     local mergeEnabled = db and db.spamControl and db.spamControl.merging
                          and db.spamControl.merging.enabled
     local mergeWindow  = (db and db.spamControl and db.spamControl.merging
@@ -95,10 +95,10 @@ local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isR
         end
     else
         -- No merging — emit directly
-        if TSBT.DisplayText then
-            TSBT.DisplayText(area, text, color, meta)
-        elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-            TSBT.Core.Display:Emit(area, text, color, meta)
+        if KSBT.DisplayText then
+            KSBT.DisplayText(area, text, color, meta)
+        elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
+            KSBT.Core.Display:Emit(area, text, color, meta)
         end
     end
 end
@@ -271,11 +271,11 @@ function Probe:OnOutgoingDetected(evt)
 end
 
 function Probe:ProcessOutgoingEvent(evt, isReplay)
-    if not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.outgoing then
+    if not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.outgoing then
         return
     end
 
-    local prof = TSBT.db.profile.outgoing
+    local prof = KSBT.db.profile.outgoing
     local kind = evt.kind
     if kind ~= "damage" and kind ~= "heal" then return end
 
@@ -325,9 +325,9 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
 
         -- School color override for non-crit damage (when school colors are enabled)
         if not meta.isCrit then
-            local prof2 = TSBT.db and TSBT.db.profile
+            local prof2 = KSBT.db and KSBT.db.profile
             if prof2 and prof2.incoming and prof2.incoming.useSchoolColors then
-                local sc = TSBT.SchoolColorFromMask and TSBT.SchoolColorFromMask(evt.schoolMask)
+                local sc = KSBT.SchoolColorFromMask and KSBT.SchoolColorFromMask(evt.schoolMask)
                 if sc then color = sc end
             end
         end

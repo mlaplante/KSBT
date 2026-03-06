@@ -2,12 +2,12 @@
 -- Kroth's Scrolling Battle Text - Combat Log Detection (Skeleton)
 -- Responsibility: listen to raw combat events and forward normalized data.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Parser = TSBT.Parser or {}
-TSBT.Parser.CombatLog = TSBT.Parser.CombatLog or {}
-local CombatLog = TSBT.Parser.CombatLog
-local Addon     = TSBT.Addon
+KSBT.Parser = KSBT.Parser or {}
+KSBT.Parser.CombatLog = KSBT.Parser.CombatLog or {}
+local CombatLog = KSBT.Parser.CombatLog
+local Addon     = KSBT.Addon
 
 function CombatLog:Enable()
     if Addon and Addon.DebugPrint then

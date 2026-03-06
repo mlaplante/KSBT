@@ -2,27 +2,27 @@
 -- Kroth's Scrolling Battle Text - Initialization
 -- Creates the addon object, registers chat commands, initializes DB.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
 ------------------------------------------------------------------------
 -- Create the Ace3 addon object
 ------------------------------------------------------------------------
-TSBT.Addon = LibStub("AceAddon-3.0"):NewAddon("KrothSBT", "AceConsole-3.0")
+KSBT.Addon = LibStub("AceAddon-3.0"):NewAddon("KrothSBT", "AceConsole-3.0")
 
-local Addon = TSBT.Addon
+local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
 -- OnInitialize: Fires once when addon loads (before PLAYER_LOGIN)
 ------------------------------------------------------------------------
 function Addon:OnInitialize()
     -- Initialize AceDB with our defaults and enable profiles
-    self.db = LibStub("AceDB-3.0"):New("KrothSBTDB", TSBT.DEFAULTS, true)
+    self.db = LibStub("AceDB-3.0"):New("KrothSBTDB", KSBT.DEFAULTS, true)
 
     -- Store reference in shared namespace for cross-file access
-    TSBT.db = self.db
+    KSBT.db = self.db
 
-    if TSBT.Core and TSBT.Core.Minimap and TSBT.Core.Minimap.Init then
-        TSBT.Core.Minimap:Init()
+    if KSBT.Core and KSBT.Core.Minimap and KSBT.Core.Minimap.Init then
+        KSBT.Core.Minimap:Init()
     end
 
     -- Register LibSharedMedia-3.0 defaults (ensure base WoW font is listed)
@@ -38,8 +38,8 @@ function Addon:OnInitialize()
     self:RegisterChatCommand("krothsbt", "HandleSlashCommand")
 
     -- Build and register Ace3 options table (assembled in Config.lua)
-    if TSBT.BuildOptionsTable then
-        local options = TSBT.BuildOptionsTable()
+    if KSBT.BuildOptionsTable then
+        local options = KSBT.BuildOptionsTable()
 
         -- Inject the AceDBOptions-3.0 profiles tab into the options tree
         local AceDBOptions = LibStub("AceDBOptions-3.0", true)
@@ -53,16 +53,16 @@ function Addon:OnInitialize()
         self.configDialog = LibStub("AceConfigDialog-3.0")
 
         -- Set the default size for the config dialog
-        self.configDialog:SetDefaultSize("KrothSBT", TSBT.CONFIG_WIDTH,
-                                         TSBT.CONFIG_HEIGHT)
+        self.configDialog:SetDefaultSize("KrothSBT", KSBT.CONFIG_WIDTH,
+                                         KSBT.CONFIG_HEIGHT)
 
         -- Apply Strike Silver color scheme to config frame
-        if TSBT.ApplyStrikeSilverStyling then
-            TSBT.ApplyStrikeSilverStyling()
+        if KSBT.ApplyStrikeSilverStyling then
+            KSBT.ApplyStrikeSilverStyling()
         end
     end
 
-    self:Print(TSBT.ADDON_TITLE .. " v" .. TSBT.VERSION ..
+    self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION ..
                    " loaded. Type /ksbt to configure.")
 end
 
@@ -75,34 +75,34 @@ function Addon:OnEnable()
                               self.db.profile.general.enabled == true
 
     -- Always init core once (safe, no-op skeleton)
-    if TSBT.Core and TSBT.Core.Init then TSBT.Core:Init() end
+    if KSBT.Core and KSBT.Core.Init then KSBT.Core:Init() end
 
     if masterEnabled then
-        if TSBT.Core and TSBT.Core.Enable then TSBT.Core:Enable() end
+        if KSBT.Core and KSBT.Core.Enable then KSBT.Core:Enable() end
 
-        if TSBT.Parser then
-            if TSBT.Parser.Incoming and TSBT.Parser.Incoming.Enable then
-                TSBT.Parser.Incoming:Enable()
+        if KSBT.Parser then
+            if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Enable then
+                KSBT.Parser.Incoming:Enable()
             end
-            if TSBT.Parser.Outgoing and TSBT.Parser.Outgoing.Enable then
-                TSBT.Parser.Outgoing:Enable()
+            if KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable then
+                KSBT.Parser.Outgoing:Enable()
             end
-            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Enable then
-                TSBT.Parser.CombatLog:Enable()
+            if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Enable then
+                KSBT.Parser.CombatLog:Enable()
             end
-            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Enable then
-                TSBT.Parser.Cooldowns:Enable()
+            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Enable then
+                KSBT.Parser.Cooldowns:Enable()
             end
         end
     else
         -- Respect saved disabled state
-        if TSBT.Parser then
-            if TSBT.Parser.Incoming  and TSBT.Parser.Incoming.Disable  then TSBT.Parser.Incoming:Disable()  end
-            if TSBT.Parser.Outgoing  and TSBT.Parser.Outgoing.Disable  then TSBT.Parser.Outgoing:Disable()  end
-            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Disable then TSBT.Parser.Cooldowns:Disable() end
-            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Disable then TSBT.Parser.CombatLog:Disable() end
+        if KSBT.Parser then
+            if KSBT.Parser.Incoming  and KSBT.Parser.Incoming.Disable  then KSBT.Parser.Incoming:Disable()  end
+            if KSBT.Parser.Outgoing  and KSBT.Parser.Outgoing.Disable  then KSBT.Parser.Outgoing:Disable()  end
+            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then KSBT.Parser.Cooldowns:Disable() end
+            if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then KSBT.Parser.CombatLog:Disable() end
         end
-        if TSBT.Core and TSBT.Core.Disable then TSBT.Core:Disable() end
+        if KSBT.Core and KSBT.Core.Disable then KSBT.Core:Disable() end
     end
 end
 
@@ -110,22 +110,22 @@ end
 -- OnDisable: Fires when addon is disabled
 ------------------------------------------------------------------------
 function Addon:OnDisable()
-    if TSBT.Parser then
-        if TSBT.Parser.Incoming and TSBT.Parser.Incoming.Disable then
-            TSBT.Parser.Incoming:Disable()
+    if KSBT.Parser then
+        if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Disable then
+            KSBT.Parser.Incoming:Disable()
         end
-        if TSBT.Parser.Outgoing and TSBT.Parser.Outgoing.Disable then
-            TSBT.Parser.Outgoing:Disable()
+        if KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Disable then
+            KSBT.Parser.Outgoing:Disable()
         end
-        if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Disable then
-            TSBT.Parser.Cooldowns:Disable()
+        if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then
+            KSBT.Parser.Cooldowns:Disable()
         end
-        if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Disable then
-            TSBT.Parser.CombatLog:Disable()
+        if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then
+            KSBT.Parser.CombatLog:Disable()
         end
     end
 
-    if TSBT.Core and TSBT.Core.Disable then TSBT.Core:Disable() end
+    if KSBT.Core and KSBT.Core.Disable then KSBT.Core:Disable() end
 end
 
 ------------------------------------------------------------------------
@@ -142,10 +142,10 @@ function Addon:HandleSlashCommand(input)
     cmd = cmd:lower()
 
     if cmd == "minimap" then
-        if TSBT.Core and TSBT.Core.Minimap and TSBT.Core.Minimap.UpdateVisibility then
-            local g = TSBT.db.profile.general
+        if KSBT.Core and KSBT.Core.Minimap and KSBT.Core.Minimap.UpdateVisibility then
+            local g = KSBT.db.profile.general
             g.minimap.hide = not g.minimap.hide
-            TSBT.Core.Minimap:UpdateVisibility()
+            KSBT.Core.Minimap:UpdateVisibility()
             self:Print(("Minimap button %s."):format(g.minimap.hide and "hidden" or "shown"))
         end
         return
@@ -158,7 +158,7 @@ function Addon:HandleSlashCommand(input)
         self:HandleResetCommand()
         return
     elseif cmd == "version" then
-        self:Print(TSBT.ADDON_TITLE .. " v" .. TSBT.VERSION)
+        self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION)
         return
     end
 
@@ -239,8 +239,8 @@ end
 ------------------------------------------------------------------------
 function Addon:HandleDebugCommand(levelStr)
     local level = tonumber(levelStr)
-    if not level or level < TSBT.DEBUG_LEVEL_NONE or level >
-        TSBT.DEBUG_LEVEL_ALL_EVENTS then
+    if not level or level < KSBT.DEBUG_LEVEL_NONE or level >
+        KSBT.DEBUG_LEVEL_ALL_EVENTS then
         self:Print("Usage: /ksbt debug [0-3]")
         self:Print("  0 = Off, 1 = Suppressed, 2 = Confidence, 3 = All Events")
         return

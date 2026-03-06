@@ -1,18 +1,18 @@
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Parser = TSBT.Parser or {}
-TSBT.Parser.Outgoing = TSBT.Parser.Outgoing or {}
-local Outgoing = TSBT.Parser.Outgoing
+KSBT.Parser = KSBT.Parser or {}
+KSBT.Parser.Outgoing = KSBT.Parser.Outgoing or {}
+local Outgoing = KSBT.Parser.Outgoing
 
 local band = bit.band
 local AFFILIATION_MINE = COMBATLOG_OBJECT_AFFILIATION_MINE or 0x00000001
 local TYPE_PLAYER      = COMBATLOG_OBJECT_TYPE_PLAYER      or 0x00000400
 
 local function Debug(level, ...)
-    if TSBT.Core and TSBT.Core.Debug then
-        TSBT.Core:Debug(level, ...)
-    elseif TSBT.Debug then
-        TSBT.Debug(level, ...)
+    if KSBT.Core and KSBT.Core.Debug then
+        KSBT.Core:Debug(level, ...)
+    elseif KSBT.Debug then
+        KSBT.Debug(level, ...)
     end
 end
 
@@ -22,11 +22,11 @@ local function IsPlayerSource(flags)
 end
 
 local function DB()
-    return TSBT.db and TSBT.db.profile
+    return KSBT.db and KSBT.db.profile
 end
 
 local function Emit(evt)
-    local probe = TSBT.Core and TSBT.Core.OutgoingProbe
+    local probe = KSBT.Core and KSBT.Core.OutgoingProbe
     if probe and probe.OnOutgoingDetected then
         probe:OnOutgoingDetected(evt)
     end

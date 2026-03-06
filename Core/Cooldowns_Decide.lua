@@ -2,12 +2,12 @@
 -- Kroth's Scrolling Battle Text - Cooldowns Decision Layer
 -- Receives cooldown-ready events and emits notification text.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-TSBT.Core.Cooldowns = TSBT.Core.Cooldowns or {}
-local Cooldowns = TSBT.Core.Cooldowns
-local Addon     = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+KSBT.Core.Cooldowns = KSBT.Core.Cooldowns or {}
+local Cooldowns = KSBT.Core.Cooldowns
+local Addon     = KSBT.Addon
 
 function Cooldowns:Enable()
     if Addon and Addon.DebugPrint then
@@ -26,11 +26,11 @@ end
 function Cooldowns:OnCooldownReady(event)
     if not event or not event.spellId then return end
 
-    local db = TSBT.db and TSBT.db.profile
+    local db = KSBT.db and KSBT.db.profile
     if not db or not db.cooldowns or not db.cooldowns.enabled then return end
 
     -- Gate on master enable + combat-only mode
-    if TSBT.Core and TSBT.Core.ShouldEmitNow and not TSBT.Core:ShouldEmitNow() then
+    if KSBT.Core and KSBT.Core.ShouldEmitNow and not KSBT.Core:ShouldEmitNow() then
         return
     end
 
@@ -41,8 +41,8 @@ function Cooldowns:OnCooldownReady(event)
 
     -- Resolve spell name: SpellData table first, then live API
     local spellName
-    local spellData = TSBT.SPELLS and TSBT.SPELLS.RESTO_DRUID and
-                      TSBT.SPELLS.RESTO_DRUID[spellId]
+    local spellData = KSBT.SPELLS and KSBT.SPELLS.RESTO_DRUID and
+                      KSBT.SPELLS.RESTO_DRUID[spellId]
     if spellData then
         spellName = spellData.name
     elseif C_Spell and C_Spell.GetSpellInfo then
@@ -62,9 +62,9 @@ function Cooldowns:OnCooldownReady(event)
             spellId, spellName))
     end
 
-    if TSBT.DisplayText then
-        TSBT.DisplayText(area, text, color, { kind = "cooldown", spellId = spellId })
-    elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-        TSBT.Core.Display:Emit(area, text, color, { kind = "cooldown", spellId = spellId })
+    if KSBT.DisplayText then
+        KSBT.DisplayText(area, text, color, { kind = "cooldown", spellId = spellId })
+    elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
+        KSBT.Core.Display:Emit(area, text, color, { kind = "cooldown", spellId = spellId })
     end
 end

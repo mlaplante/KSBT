@@ -4,9 +4,9 @@
 -- Structure mirrors the AceDB profile schema.
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.DEFAULTS = {
+KSBT.DEFAULTS = {
     profile = {
         ------------------------------------------------------------------------
         -- Tab 1: General
@@ -149,7 +149,7 @@ TSBT.DEFAULTS = {
             -- Pre-populated with all Resto Druid spells that have cooldowns.
             -- BuildRestoDruidCooldownDefaults() is defined in SpellData.lua,
             -- which must be loaded before Defaults.lua in the TOC.
-            tracked    = TSBT.BuildRestoDruidCooldownDefaults and TSBT.BuildRestoDruidCooldownDefaults() or {},
+            tracked    = KSBT.BuildRestoDruidCooldownDefaults and KSBT.BuildRestoDruidCooldownDefaults() or {},
         },
 
         ------------------------------------------------------------------------

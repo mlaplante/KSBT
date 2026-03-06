@@ -3,8 +3,8 @@
 -- Debug output and SavedVariables event logging.
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
-local Addon = TSBT.Addon
+local ADDON_NAME, KSBT = ...
+local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
 -- Debug Print (respects current debug level)

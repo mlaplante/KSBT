@@ -2,12 +2,12 @@
 -- Kroth's Scrolling Battle Text - Parser Normalization Helpers (Skeleton)
 -- Responsibility: normalize raw game data into a consistent event table.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Parser = TSBT.Parser or {}
-TSBT.Parser.Normalize = TSBT.Parser.Normalize or {}
-local Normalize = TSBT.Parser.Normalize
-local Addon     = TSBT.Addon
+KSBT.Parser = KSBT.Parser or {}
+KSBT.Parser.Normalize = KSBT.Parser.Normalize or {}
+local Normalize = KSBT.Parser.Normalize
+local Addon     = KSBT.Addon
 
 -- Create a normalized event shell (placeholder)
 function Normalize:NewEvent(kind, payload)

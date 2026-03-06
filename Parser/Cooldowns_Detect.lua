@@ -3,12 +3,12 @@
 -- Listens to SPELL_UPDATE_COOLDOWN and tracks which tracked spells
 -- transition from on-cooldown to off-cooldown, then fires the decide layer.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Parser = TSBT.Parser or {}
-TSBT.Parser.Cooldowns = TSBT.Parser.Cooldowns or {}
-local Cooldowns = TSBT.Parser.Cooldowns
-local Addon     = TSBT.Addon
+KSBT.Parser = KSBT.Parser or {}
+KSBT.Parser.Cooldowns = KSBT.Parser.Cooldowns or {}
+local Cooldowns = KSBT.Parser.Cooldowns
+local Addon     = KSBT.Addon
 
 -- Track spells currently on real cooldown (spellId -> true)
 Cooldowns._onCooldown = Cooldowns._onCooldown or {}
@@ -29,7 +29,7 @@ local function IsOnCooldown(spellId)
 end
 
 local function CheckAllTracked()
-    local db = TSBT.db and TSBT.db.profile
+    local db = KSBT.db and KSBT.db.profile
     if not db or not db.cooldowns or not db.cooldowns.enabled then return end
     local tracked = db.cooldowns.tracked
     if not tracked then return end
@@ -40,7 +40,7 @@ local function CheckAllTracked()
             local nowOnCD = IsOnCooldown(id)
             if Cooldowns._onCooldown[id] and not nowOnCD then
                 -- Transitioned: was on cooldown, now ready
-                local decide = TSBT.Core and TSBT.Core.Cooldowns
+                local decide = KSBT.Core and KSBT.Core.Cooldowns
                 if decide and decide.OnCooldownReady then
                     decide:OnCooldownReady({ spellId = id })
                 end
@@ -53,7 +53,7 @@ end
 
 -- Seed initial cooldown states to avoid false-fires on first SPELL_UPDATE_COOLDOWN
 local function SeedCooldownStates()
-    local db = TSBT.db and TSBT.db.profile
+    local db = KSBT.db and KSBT.db.profile
     if not db or not db.cooldowns or not db.cooldowns.tracked then return end
     for spellId, _ in pairs(db.cooldowns.tracked) do
         local id = tonumber(spellId)

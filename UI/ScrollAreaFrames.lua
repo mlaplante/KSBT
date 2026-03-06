@@ -5,8 +5,8 @@
 -- Feature B: Test animation - fires dummy text into a scroll area.
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
-local Addon = TSBT.Addon
+local ADDON_NAME, KSBT = ...
+local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
 -- Constants for visualization frames
@@ -83,8 +83,8 @@ end
 -- Scroll areas may override the global font. This is used by the test
 -- animation now and will be consumed by the runtime display engine later.
 ------------------------------------------------------------------------
-function TSBT.ResolveFontForArea(areaName)
-    local profile = TSBT.db and TSBT.db.profile
+function KSBT.ResolveFontForArea(areaName)
+    local profile = KSBT.db and KSBT.db.profile
     if not profile then
         return "Fonts\\FRIZQT__.TTF", 18, "OUTLINE", 1.0
     end
@@ -111,7 +111,7 @@ function TSBT.ResolveFontForArea(areaName)
     end
 
     local fontSize = tonumber(sizeVal) or 18
-    local outlineFlag = TSBT.OUTLINE_STYLES[outlineKey] or "OUTLINE"
+    local outlineFlag = KSBT.OUTLINE_STYLES[outlineKey] or "OUTLINE"
     local fontAlpha = tonumber(alphaVal) or 1.0
 
     return fontFace, fontSize, outlineFlag, fontAlpha
@@ -132,7 +132,7 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     local color = AREA_COLORS[((colorIdx - 1) % #AREA_COLORS) + 1]
 
     -- Create the frame anchored to screen center (UIParent CENTER)
-    local frame = CreateFrame("Frame", "TSBT_AreaViz_" .. areaName, UIParent,
+    local frame = CreateFrame("Frame", "KSBT_AreaViz_" .. areaName, UIParent,
         "BackdropTemplate")
     frame:SetSize(areaData.width, areaData.height)
     frame:SetPoint("CENTER", UIParent, "CENTER", areaData.xOffset, areaData.yOffset)
@@ -188,13 +188,13 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
         local newYOffset = math.floor(frameY - centerY + 0.5)
 
         -- Clamp to slider range
-        newXOffset = math.max(TSBT.SCROLL_OFFSET_MIN,
-                     math.min(TSBT.SCROLL_OFFSET_MAX, newXOffset))
-        newYOffset = math.max(TSBT.SCROLL_OFFSET_MIN,
-                     math.min(TSBT.SCROLL_OFFSET_MAX, newYOffset))
+        newXOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
+                     math.min(KSBT.SCROLL_OFFSET_MAX, newXOffset))
+        newYOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
+                     math.min(KSBT.SCROLL_OFFSET_MAX, newYOffset))
 
         -- Update the saved profile data
-        local area = TSBT.db.profile.scrollAreas[self.areaName]
+        local area = KSBT.db.profile.scrollAreas[self.areaName]
         if area then
             area.xOffset = newXOffset
             area.yOffset = newYOffset
@@ -213,9 +213,9 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
         -- If a parent frame exists for this area, it will be repositioned on next FireTestText call.
         -- Just nil the entry so FireTestText re-creates it at the new position.
         -- Note: any in-flight animations on this frame complete naturally (animFrames have own lifecycle).
-        if TSBT._testParentFrames and TSBT._testParentFrames[self.areaName] then
-            TSBT._testParentFrames[self.areaName]:Hide()
-            TSBT._testParentFrames[self.areaName] = nil
+        if KSBT._testParentFrames and KSBT._testParentFrames[self.areaName] then
+            KSBT._testParentFrames[self.areaName]:Hide()
+            KSBT._testParentFrames[self.areaName] = nil
         end
         -- Also clear the FontString pool for this area: pooled FS are parented to the old
         -- (now hidden) frame and cannot be reparented in WoW. Fresh FS will be created on
@@ -236,16 +236,16 @@ end
 -- ShowScrollAreaFrames: Create and display visualization frames for all
 -- configured scroll areas. Called when user clicks "Unlock Scroll Areas".
 ------------------------------------------------------------------------
-function TSBT.ShowScrollAreaFrames()
+function KSBT.ShowScrollAreaFrames()
     -- Clean up any existing frames first
-    TSBT.HideScrollAreaFrames()
+    KSBT.HideScrollAreaFrames()
 
-    if not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.scrollAreas then
+    if not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.scrollAreas then
         return
     end
 
     local colorIdx = 0
-    for areaName, areaData in pairs(TSBT.db.profile.scrollAreas) do
+    for areaName, areaData in pairs(KSBT.db.profile.scrollAreas) do
         colorIdx = colorIdx + 1
         local frame = CreateAreaFrame(areaName, areaData, colorIdx)
         activeFrames[areaName] = frame
@@ -260,12 +260,12 @@ end
 -- current profile scrollAreas without requiring a lock/unlock cycle.
 -- Called after create/delete while unlocked.
 ------------------------------------------------------------------------
-function TSBT.RefreshScrollAreaFrames()
-    if not isUnlocked or not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.scrollAreas then
+function KSBT.RefreshScrollAreaFrames()
+    if not isUnlocked or not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.scrollAreas then
         return
     end
 
-    local areas = TSBT.db.profile.scrollAreas
+    local areas = KSBT.db.profile.scrollAreas
 
     -- Remove frames that no longer exist
     for areaName, frame in pairs(activeFrames) do
@@ -287,20 +287,20 @@ function TSBT.RefreshScrollAreaFrames()
         end
     end
 
-    TSBT.UpdateScrollAreaFrames()
+    KSBT.UpdateScrollAreaFrames()
 end
 
 ------------------------------------------------------------------------
 -- UpdateScrollAreaFrames: Update all active visualization frames to match
 -- current profile settings (size, position). Called when sliders are adjusted.
 ------------------------------------------------------------------------
-function TSBT.UpdateScrollAreaFrames()
-    if not isUnlocked or not TSBT.db or not TSBT.db.profile then
+function KSBT.UpdateScrollAreaFrames()
+    if not isUnlocked or not KSBT.db or not KSBT.db.profile then
         return
     end
 
     for areaName, frame in pairs(activeFrames) do
-        local areaData = TSBT.db.profile.scrollAreas[areaName]
+        local areaData = KSBT.db.profile.scrollAreas[areaName]
         if areaData then
             -- Update size
             frame:SetSize(areaData.width, areaData.height)
@@ -323,10 +323,10 @@ end
 -- HideScrollAreaFrames: Destroy all visualization frames.
 -- Called when user clicks "Lock Scroll Areas".
 ------------------------------------------------------------------------
-function TSBT.HideScrollAreaFrames()
+function KSBT.HideScrollAreaFrames()
     -- Stop continuous testing if active
     if isContinuousTesting then
-        TSBT.StopContinuousTesting()
+        KSBT.StopContinuousTesting()
     end
 
     for areaName, frame in pairs(activeFrames) do
@@ -342,7 +342,7 @@ end
 -- IsUnlocked: Query whether scroll areas are currently in unlock mode.
 -- Used by the toggle button in ConfigTabs.
 ------------------------------------------------------------------------
-function TSBT.IsScrollAreasUnlocked()
+function KSBT.IsScrollAreasUnlocked()
     return isUnlocked
 end
 
@@ -358,7 +358,7 @@ end
 --
 -- @param areaName (string) Name of scroll area to test
 ------------------------------------------------------------------------
-function TSBT.TestScrollArea(areaName)
+function KSBT.TestScrollArea(areaName)
     if not areaName then
         Addon:Print("No scroll area selected for test.")
         return
@@ -370,15 +370,15 @@ function TSBT.TestScrollArea(areaName)
         return
     end
 
-    local area = TSBT.db and TSBT.db.profile
-                  and TSBT.db.profile.scrollAreas
-                  and TSBT.db.profile.scrollAreas[areaName]
+    local area = KSBT.db and KSBT.db.profile
+                  and KSBT.db.profile.scrollAreas
+                  and KSBT.db.profile.scrollAreas[areaName]
     if not area then
         Addon:Print("Scroll area '" .. areaName .. "' not found.")
         return
     end
 
-    local fontFace, fontSize, outlineFlag, fontAlpha = TSBT.ResolveFontForArea(areaName)
+    local fontFace, fontSize, outlineFlag, fontAlpha = KSBT.ResolveFontForArea(areaName)
 
     -- Determine alignment anchor point
     local alignmentMap = {
@@ -405,7 +405,7 @@ function TSBT.TestScrollArea(areaName)
     for i, text in ipairs(mockEvents) do
         -- Use C_Timer.After for staggered firing (0.0, 0.3, 0.6 seconds)
         C_Timer.After((i - 1) * 0.3, function()
-            TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
+            KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
                               fontAlpha, anchorH, dirMult, duration)
         end)
     end
@@ -431,12 +431,12 @@ local function FireAllAreasOnce()
 
     -- Fire test events into each unlocked area
     for areaName, _ in pairs(activeFrames) do
-        local area = TSBT.db and TSBT.db.profile
-                      and TSBT.db.profile.scrollAreas
-                      and TSBT.db.profile.scrollAreas[areaName]
+        local area = KSBT.db and KSBT.db.profile
+                      and KSBT.db.profile.scrollAreas
+                      and KSBT.db.profile.scrollAreas[areaName]
         
         if area then
-            local fontFace, fontSize, outlineFlag, fontAlpha = TSBT.ResolveFontForArea(areaName)
+            local fontFace, fontSize, outlineFlag, fontAlpha = KSBT.ResolveFontForArea(areaName)
 
             -- Determine alignment anchor point
             local alignmentMap = {
@@ -458,7 +458,7 @@ local function FireAllAreasOnce()
                 local mockEvent = mockEvents[((i - 1) % #mockEvents) + 1]
                 
                 C_Timer.After((i - 1) * 0.3, function()
-                    TSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
+                    KSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
                                       outlineFlag, fontAlpha, anchorH, dirMult, duration)
                 end)
             end
@@ -469,7 +469,7 @@ end
 ------------------------------------------------------------------------
 -- StartContinuousTesting: Start continuous test animation loop
 ------------------------------------------------------------------------
-function TSBT.StartContinuousTesting()
+function KSBT.StartContinuousTesting()
     -- Check if any areas are unlocked
     local hasUnlockedAreas = false
     for areaName, _ in pairs(activeFrames) do
@@ -515,7 +515,7 @@ end
 ------------------------------------------------------------------------
 -- StopContinuousTesting: Stop continuous test animation loop
 ------------------------------------------------------------------------
-function TSBT.StopContinuousTesting()
+function KSBT.StopContinuousTesting()
     if not isContinuousTesting then
         return
     end
@@ -536,7 +536,7 @@ end
 ------------------------------------------------------------------------
 -- IsContinuousTesting: Query whether continuous testing is active
 ------------------------------------------------------------------------
-function TSBT.IsContinuousTesting()
+function KSBT.IsContinuousTesting()
     return isContinuousTesting
 end
 
@@ -557,22 +557,22 @@ end
 -- @param duration     (number) Animation duration in seconds
 ------------------------------------------------------------------------
 -- @param color        (table|nil) Optional {r,g,b,a} text color. If nil,
---                      uses TSBT.COLORS.ACCENT.
-function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
+--                      uses KSBT.COLORS.ACCENT.
+function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
                            fontAlpha, anchorH, dirMult, duration, color)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
     local parentKey = areaName
     
-    if not TSBT._testParentFrames then
-        TSBT._testParentFrames = {}
+    if not KSBT._testParentFrames then
+        KSBT._testParentFrames = {}
     end
     
-    local parent = TSBT._testParentFrames[parentKey]
+    local parent = KSBT._testParentFrames[parentKey]
     if not parent then
-        parent = CreateFrame("Frame", "TSBT_TestParent_" .. parentKey, UIParent)
+        parent = CreateFrame("Frame", "KSBT_TestParent_" .. parentKey, UIParent)
         parent:SetFrameStrata("HIGH")
-        TSBT._testParentFrames[parentKey] = parent
+        KSBT._testParentFrames[parentKey] = parent
     end
     
     -- Position and size the parent for this area
@@ -588,7 +588,7 @@ function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
     fs:SetAlpha(fontAlpha)
 
     -- Use caller-provided color when available; otherwise accent.
-    local c = color or TSBT.COLORS.ACCENT
+    local c = color or KSBT.COLORS.ACCENT
     fs:SetTextColor(c.r or 1, c.g or 1, c.b or 1, c.a or 1.0)
 
     local animStyle = area.animation or "Straight"

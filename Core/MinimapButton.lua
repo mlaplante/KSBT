@@ -5,12 +5,12 @@
 -- Middle Click: Toggle KSBT enabled/disabled
 -- Drag (Left): Move around minimap ring
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-TSBT.Core.Minimap = TSBT.Core.Minimap or {}
-local MM = TSBT.Core.Minimap
-local Addon = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+KSBT.Core.Minimap = KSBT.Core.Minimap or {}
+local MM = KSBT.Core.Minimap
+local Addon = KSBT.Addon
 
 local BUTTON_NAME = "KrothSBT_MinimapButton"
 
@@ -46,9 +46,9 @@ local function cursorAngleFromMinimap()
 end
 
 function MM:ApplyPosition()
-    if not self.button or not TSBT.db then return end
+    if not self.button or not KSBT.db then return end
 
-    local angle = clampAngle(TSBT.db.profile.general.minimap.angle)
+    local angle = clampAngle(KSBT.db.profile.general.minimap.angle)
     local x, y = angleToXY(angle)
 
     -- Critical: clear points first to avoid anchor-family conflicts.
@@ -57,8 +57,8 @@ function MM:ApplyPosition()
 end
 
 function MM:UpdateVisibility()
-    if not self.button or not TSBT.db then return end
-    if TSBT.db.profile.general.minimap.hide then
+    if not self.button or not KSBT.db then return end
+    if KSBT.db.profile.general.minimap.hide then
         self.button:Hide()
     else
         self.button:Show()
@@ -67,8 +67,8 @@ function MM:UpdateVisibility()
 end
 
 function MM:SetHidden(hidden)
-    if not TSBT.db then return end
-    TSBT.db.profile.general.minimap.hide = hidden and true or false
+    if not KSBT.db then return end
+    KSBT.db.profile.general.minimap.hide = hidden and true or false
     self:UpdateVisibility()
 end
 
@@ -78,7 +78,7 @@ function MM:Init()
         return
     end
 
-    if not Minimap or not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.general then return end
+    if not Minimap or not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.general then return end
 
     local b = CreateFrame("Button", BUTTON_NAME, Minimap)
     b:SetSize(32, 32)
@@ -130,7 +130,7 @@ function MM:Init()
         self.isDragging = true
         self:SetScript("OnUpdate", function()
             local angle = cursorAngleFromMinimap()
-            TSBT.db.profile.general.minimap.angle = angle
+            KSBT.db.profile.general.minimap.angle = angle
             MM:ApplyPosition()
         end)
     end)
@@ -145,7 +145,7 @@ function MM:Init()
     -- Click behavior
     --------------------------------------------------------------------
     b:SetScript("OnClick", function(_, btn)
-        local g = TSBT.db.profile.general
+        local g = KSBT.db.profile.general
 
         -- Left click: open config
         if btn == "LeftButton" then
@@ -174,11 +174,11 @@ function MM:Init()
         if btn == "MiddleButton" then
             g.enabled = not g.enabled
 
-            if TSBT.Core and TSBT.Core.Enable and TSBT.Core.Disable then
+            if KSBT.Core and KSBT.Core.Enable and KSBT.Core.Disable then
                 if g.enabled then
-                    TSBT.Core:Enable()
+                    KSBT.Core:Enable()
                 else
-                    TSBT.Core:Disable()
+                    KSBT.Core:Disable()
                 end
             end
 

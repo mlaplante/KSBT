@@ -4,12 +4,12 @@
 -- Order values control tab ordering in the UI.
 --
 -- NOTE: All font/sound dropdowns use standard "select" type with
--- TSBT.BuildFontDropdown() / TSBT.BuildSoundDropdown() helpers.
+-- KSBT.BuildFontDropdown() / KSBT.BuildSoundDropdown() helpers.
 -- No LSM30_Font or LSM30_Sound widget dependencies.
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
-local Addon = TSBT.Addon
+local ADDON_NAME, KSBT = ...
+local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
 -- Compatibility: C_Spell.GetSpellInfo for WoW 12.0+
@@ -52,7 +52,7 @@ end
 -- TAB 1: GENERAL
 -- Master font, global behavior, quick actions, profile management.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_General()
+function KSBT.BuildTab_General()
     return {
         type  = "group",
         name  = "General",
@@ -69,30 +69,30 @@ function TSBT.BuildTab_General()
                 desc  = "Master switch to enable or disable all KSBT output.",
                 width = "full",
                 order = 2,
-                get   = function() return TSBT.db.profile.general.enabled end,
+                get   = function() return KSBT.db.profile.general.enabled end,
                 set   = function(_, val)
-                    TSBT.db.profile.general.enabled = val
+                    KSBT.db.profile.general.enabled = val
 
                     -- Drive runtime gating immediately (safe no-ops in skeleton layers).
-                    if TSBT.Core then
-                        if val and TSBT.Core.Enable then TSBT.Core:Enable() end
-                        if (not val) and TSBT.Core.Disable then TSBT.Core:Disable() end
+                    if KSBT.Core then
+                        if val and KSBT.Core.Enable then KSBT.Core:Enable() end
+                        if (not val) and KSBT.Core.Disable then KSBT.Core:Disable() end
                     end
 
-                    if TSBT.Parser then
+                    if KSBT.Parser then
                         if val then
-                            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Enable then
-                                TSBT.Parser.CombatLog:Enable()
+                            if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Enable then
+                                KSBT.Parser.CombatLog:Enable()
                             end
-                            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Enable then
-                                TSBT.Parser.Cooldowns:Enable()
+                            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Enable then
+                                KSBT.Parser.Cooldowns:Enable()
                             end
                         else
-                            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Disable then
-                                TSBT.Parser.Cooldowns:Disable()
+                            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then
+                                KSBT.Parser.Cooldowns:Disable()
                             end
-                            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Disable then
-                                TSBT.Parser.CombatLog:Disable()
+                            if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then
+                                KSBT.Parser.CombatLog:Disable()
                             end
                         end
                     end
@@ -106,9 +106,9 @@ function TSBT.BuildTab_General()
                 desc  = "Only display KSBT output while you are in combat.",
                 width = "full",
                 order = 3,
-                get   = function() return TSBT.db.profile.general.combatOnly end,
+                get   = function() return KSBT.db.profile.general.combatOnly end,
                 set   = function(_, val)
-                    TSBT.db.profile.general.combatOnly = val
+                    KSBT.db.profile.general.combatOnly = val
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
             },
@@ -123,10 +123,10 @@ function TSBT.BuildTab_General()
                 name   = "Font Face",
                 desc   = "Global font used for all KSBT combat text.",
                 order  = 11,
-                values = function() return TSBT.BuildFontDropdown() end,
-                get    = function() return TSBT.db.profile.general.font.face end,
+                values = function() return KSBT.BuildFontDropdown() end,
+                get    = function() return KSBT.db.profile.general.font.face end,
                 set    = function(_, val)
-                    TSBT.db.profile.general.font.face = val
+                    KSBT.db.profile.general.font.face = val
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
             },
@@ -135,12 +135,12 @@ function TSBT.BuildTab_General()
                 name  = "Font Size",
                 desc  = "Base size for KSBT combat text numbers.",
                 order = 12,
-                min   = TSBT.FONT_SIZE_MIN,
-                max   = TSBT.FONT_SIZE_MAX,
+                min   = KSBT.FONT_SIZE_MIN,
+                max   = KSBT.FONT_SIZE_MAX,
                 step  = 1,
-                get   = function() return TSBT.db.profile.general.font.size end,
+                get   = function() return KSBT.db.profile.general.font.size end,
                 set   = function(_, val)
-                    TSBT.db.profile.general.font.size = val
+                    KSBT.db.profile.general.font.size = val
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
             },
@@ -149,10 +149,10 @@ function TSBT.BuildTab_General()
                 name   = "Outline Style",
                 desc   = "Font outline thickness.",
                 order  = 13,
-                values = TSBT.ValuesFromKeys(TSBT.OUTLINE_STYLES),
-                get    = function() return TSBT.db.profile.general.font.outline end,
+                values = KSBT.ValuesFromKeys(KSBT.OUTLINE_STYLES),
+                get    = function() return KSBT.db.profile.general.font.outline end,
                 set    = function(_, val)
-                    TSBT.db.profile.general.font.outline = val
+                    KSBT.db.profile.general.font.outline = val
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
             },
@@ -161,13 +161,13 @@ function TSBT.BuildTab_General()
                 name      = "Text Opacity",
                 desc      = "Global transparency for KSBT text.",
                 order     = 14,
-                min       = TSBT.ALPHA_MIN,
-                max       = TSBT.ALPHA_MAX,
+                min       = KSBT.ALPHA_MIN,
+                max       = KSBT.ALPHA_MAX,
                 step      = 0.05,
                 isPercent = true,
-                get       = function() return TSBT.db.profile.general.font.alpha end,
+                get       = function() return KSBT.db.profile.general.font.alpha end,
                 set       = function(_, val)
-                    TSBT.db.profile.general.font.alpha = val
+                    KSBT.db.profile.general.font.alpha = val
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
             },
@@ -187,21 +187,21 @@ function TSBT.BuildTab_General()
                 func    = function()
                     -- Preserve tracked cooldown spells.
                     local preservedTracked = nil
-                    if TSBT.db
-                        and TSBT.db.profile
-                        and TSBT.db.profile.cooldowns
-                        and TSBT.db.profile.cooldowns.tracked then
+                    if KSBT.db
+                        and KSBT.db.profile
+                        and KSBT.db.profile.cooldowns
+                        and KSBT.db.profile.cooldowns.tracked then
 
                         preservedTracked = {}
-                        for k, v in pairs(TSBT.db.profile.cooldowns.tracked) do
+                        for k, v in pairs(KSBT.db.profile.cooldowns.tracked) do
                             preservedTracked[k] = v
                         end
                     end
 
-                    TSBT.db:ResetProfile()
+                    KSBT.db:ResetProfile()
 
                     if preservedTracked then
-                        TSBT.db.profile.cooldowns.tracked = preservedTracked
+                        KSBT.db.profile.cooldowns.tracked = preservedTracked
                     end
 
                     Addon:Print("Settings reset to defaults.")
@@ -219,7 +219,7 @@ function TSBT.BuildTab_General()
             },
             versionInfo = {
                 type  = "description",
-                name  = "\n|cFF888888" .. TSBT.ADDON_TITLE .. " v" .. TSBT.VERSION .. "|r",
+                name  = "\n|cFF888888" .. KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION .. "|r",
                 order = 40,
             },
         },
@@ -240,11 +240,11 @@ local createScrollAreaBuffer = ""
 
 local function GetFallbackScrollAreaName()
     -- Prefer Incoming if it exists; otherwise pick the first available area name.
-    if TSBT and TSBT.db and TSBT.db.profile and TSBT.db.profile.scrollAreas then
-        if TSBT.db.profile.scrollAreas["Incoming"] then
+    if KSBT and KSBT.db and KSBT.db.profile and KSBT.db.profile.scrollAreas then
+        if KSBT.db.profile.scrollAreas["Incoming"] then
             return "Incoming"
         end
-        for name in pairs(TSBT.db.profile.scrollAreas) do
+        for name in pairs(KSBT.db.profile.scrollAreas) do
             return name
         end
     end
@@ -252,7 +252,7 @@ local function GetFallbackScrollAreaName()
 end
 
 local function EnsureSelectedScrollArea()
-    local names = TSBT.GetScrollAreaNames and TSBT.GetScrollAreaNames() or nil
+    local names = KSBT.GetScrollAreaNames and KSBT.GetScrollAreaNames() or nil
     if names and selectedScrollArea and names[selectedScrollArea] then
         return selectedScrollArea
     end
@@ -278,7 +278,7 @@ end
 
 local function ReplaceScrollAreaRefsInProfile(oldName, newName)
     if not oldName or not newName or oldName == newName then return end
-    if not TSBT or not TSBT.db or not TSBT.db.profile then return end
+    if not KSBT or not KSBT.db or not KSBT.db.profile then return end
 
     local function walk(tbl)
         for k, v in pairs(tbl) do
@@ -290,14 +290,14 @@ local function ReplaceScrollAreaRefsInProfile(oldName, newName)
         end
     end
 
-    walk(TSBT.db.profile)
+    walk(KSBT.db.profile)
 end
 
 local function CreateDefaultScrollArea(name)
     name = name or "Incoming"
-    if TSBT.db.profile.scrollAreas[name] then return name end
+    if KSBT.db.profile.scrollAreas[name] then return name end
 
-    TSBT.db.profile.scrollAreas[name] = {
+    KSBT.db.profile.scrollAreas[name] = {
         xOffset   = -450,
         yOffset   = 250,
         width     = 200,
@@ -308,10 +308,10 @@ local function CreateDefaultScrollArea(name)
         animSpeed = 1.0,
         font      = {
             useGlobal = true,
-            face      = TSBT.db.profile.general.font.face,
-            size      = TSBT.db.profile.general.font.size,
-            outline   = TSBT.db.profile.general.font.outline,
-            alpha     = TSBT.db.profile.general.font.alpha,
+            face      = KSBT.db.profile.general.font.face,
+            size      = KSBT.db.profile.general.font.size,
+            outline   = KSBT.db.profile.general.font.outline,
+            alpha     = KSBT.db.profile.general.font.alpha,
         },
     }
     return name
@@ -319,18 +319,18 @@ end
 
 local function MakeUniqueScrollAreaName(base)
     base = base or "New Area"
-    if not TSBT.db.profile.scrollAreas[base] then return base end
+    if not KSBT.db.profile.scrollAreas[base] then return base end
     local i = 2
     while true do
         local candidate = base .. " " .. i
-        if not TSBT.db.profile.scrollAreas[candidate] then
+        if not KSBT.db.profile.scrollAreas[candidate] then
             return candidate
         end
         i = i + 1
     end
 end
 
-function TSBT.BuildTab_ScrollAreas()
+function KSBT.BuildTab_ScrollAreas()
     return {
         type  = "group",
         name  = "Scroll Areas",
@@ -364,7 +364,7 @@ function TSBT.BuildTab_ScrollAreas()
                         desc   = "Choose a scroll area to configure.",
                         order  = 1,
                         width  = "double",
-                        values = function() return TSBT.GetScrollAreaNames() end,
+                        values = function() return KSBT.GetScrollAreaNames() end,
                         get    = function() return EnsureSelectedScrollArea() end,
                         set    = function(_, val)
                             selectedScrollArea = val
@@ -383,7 +383,7 @@ function TSBT.BuildTab_ScrollAreas()
                             if not sel then return end
 
                             local count = 0
-                            for _ in pairs(TSBT.db.profile.scrollAreas) do count = count + 1 end
+                            for _ in pairs(KSBT.db.profile.scrollAreas) do count = count + 1 end
 
                             if count <= 1 then
                                 -- Last area safeguard: we never allow zero areas. We delete, then immediately create a new default.
@@ -432,32 +432,32 @@ function TSBT.BuildTab_ScrollAreas()
                             local sel = EnsureSelectedScrollArea()
                             local newName = strtrim(renameScrollAreaBuffer or "")
                             if not sel or newName == "" or newName == sel then return true end
-                            return TSBT.db.profile.scrollAreas[newName] ~= nil
+                            return KSBT.db.profile.scrollAreas[newName] ~= nil
                         end,
                         func     = function()
                             local oldName = EnsureSelectedScrollArea()
                             local newName = strtrim(renameScrollAreaBuffer or "")
                             if not oldName or newName == "" or newName == oldName then return end
 
-                            if TSBT.db.profile.scrollAreas[newName] then
-                                TSBT.Addon:Print("Scroll area '" .. newName .. "' already exists.")
+                            if KSBT.db.profile.scrollAreas[newName] then
+                                KSBT.Addon:Print("Scroll area '" .. newName .. "' already exists.")
                                 return
                             end
 
-                            TSBT.db.profile.scrollAreas[newName] = TSBT.db.profile.scrollAreas[oldName]
-                            TSBT.db.profile.scrollAreas[oldName] = nil
+                            KSBT.db.profile.scrollAreas[newName] = KSBT.db.profile.scrollAreas[oldName]
+                            KSBT.db.profile.scrollAreas[oldName] = nil
 
                             ReplaceScrollAreaRefsInProfile(oldName, newName)
 
                             selectedScrollArea = newName
                             renameScrollAreaBuffer = ""
 
-                            if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() and TSBT.RefreshScrollAreaFrames then
-                                TSBT.RefreshScrollAreaFrames()
+                            if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() and KSBT.RefreshScrollAreaFrames then
+                                KSBT.RefreshScrollAreaFrames()
                             end
 
                             LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
-                            TSBT.Addon:Print("Renamed scroll area: " .. oldName .. " -> " .. newName)
+                            KSBT.Addon:Print("Renamed scroll area: " .. oldName .. " -> " .. newName)
                         end,
                     },
                 },
@@ -485,12 +485,12 @@ function TSBT.BuildTab_ScrollAreas()
                                 return
                             end
 
-                            if TSBT.db.profile.scrollAreas[val] then
+                            if KSBT.db.profile.scrollAreas[val] then
                                 Addon:Print("Scroll area '" .. val .. "' already exists.")
                                 return
                             end
 
-                            TSBT.db.profile.scrollAreas[val] = {
+                            KSBT.db.profile.scrollAreas[val] = {
                                 xOffset   = -450,
                                 yOffset   = 250,
                                 width     = 200,
@@ -501,10 +501,10 @@ function TSBT.BuildTab_ScrollAreas()
                                 animSpeed = 1.0,
                                 font      = {
                                     useGlobal = true,
-                                    face      = TSBT.db.profile.general.font.face,
-                                    size      = TSBT.db.profile.general.font.size,
-                                    outline   = TSBT.db.profile.general.font.outline,
-                                    alpha     = TSBT.db.profile.general.font.alpha,
+                                    face      = KSBT.db.profile.general.font.face,
+                                    size      = KSBT.db.profile.general.font.size,
+                                    outline   = KSBT.db.profile.general.font.outline,
+                                    alpha     = KSBT.db.profile.general.font.alpha,
                                 },
                             }
 
@@ -512,8 +512,8 @@ function TSBT.BuildTab_ScrollAreas()
                             createScrollAreaBuffer = ""
                             Addon:Print("Created scroll area: " .. val)
 
-                            if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() and TSBT.RefreshScrollAreaFrames then
-                                TSBT.RefreshScrollAreaFrames()
+                            if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() and KSBT.RefreshScrollAreaFrames then
+                                KSBT.RefreshScrollAreaFrames()
                             end
                             LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                         end,
@@ -525,7 +525,7 @@ function TSBT.BuildTab_ScrollAreas()
             unlockAreas = {
                 type  = "execute",
                 name  = function()
-                    if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() then
+                    if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() then
                         return "Lock Scroll Areas"
                     end
                     return "Unlock Scroll Areas"
@@ -534,11 +534,11 @@ function TSBT.BuildTab_ScrollAreas()
                 order = 5,
                 width = "full",
                 func  = function()
-                    if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() then
-                        TSBT.HideScrollAreaFrames()
+                    if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() then
+                        KSBT.HideScrollAreaFrames()
                         Addon:Print("Scroll areas locked.")
                     else
-                        TSBT.ShowScrollAreaFrames()
+                        KSBT.ShowScrollAreaFrames()
                     end
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
                 end,
@@ -567,21 +567,21 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "X Offset",
                 desc   = "Horizontal position relative to screen center.",
                 order  = 11,
-                min    = TSBT.SCROLL_OFFSET_MIN,
-                max    = TSBT.SCROLL_OFFSET_MAX,
+                min    = KSBT.SCROLL_OFFSET_MIN,
+                max    = KSBT.SCROLL_OFFSET_MAX,
                 step   = 5,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.xOffset or 0
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then
                         area.xOffset = val
                         -- Update visualization frame in real-time
-                        if TSBT.UpdateScrollAreaFrames then
-                            TSBT.UpdateScrollAreaFrames()
+                        if KSBT.UpdateScrollAreaFrames then
+                            KSBT.UpdateScrollAreaFrames()
                         end
                     end
                 end,
@@ -591,21 +591,21 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Y Offset",
                 desc   = "Vertical position relative to screen center.",
                 order  = 12,
-                min    = TSBT.SCROLL_OFFSET_MIN,
-                max    = TSBT.SCROLL_OFFSET_MAX,
+                min    = KSBT.SCROLL_OFFSET_MIN,
+                max    = KSBT.SCROLL_OFFSET_MAX,
                 step   = 5,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.yOffset or 0
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then
                         area.yOffset = val
                         -- Update visualization frame in real-time
-                        if TSBT.UpdateScrollAreaFrames then
-                            TSBT.UpdateScrollAreaFrames()
+                        if KSBT.UpdateScrollAreaFrames then
+                            KSBT.UpdateScrollAreaFrames()
                         end
                     end
                 end,
@@ -615,21 +615,21 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Width",
                 desc   = "Width of the scroll area in pixels.",
                 order  = 13,
-                min    = TSBT.SCROLL_WIDTH_MIN,
-                max    = TSBT.SCROLL_WIDTH_MAX,
+                min    = KSBT.SCROLL_WIDTH_MIN,
+                max    = KSBT.SCROLL_WIDTH_MAX,
                 step   = 10,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.width or 200
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then
                         area.width = val
                         -- Update visualization frame in real-time
-                        if TSBT.UpdateScrollAreaFrames then
-                            TSBT.UpdateScrollAreaFrames()
+                        if KSBT.UpdateScrollAreaFrames then
+                            KSBT.UpdateScrollAreaFrames()
                         end
                     end
                 end,
@@ -639,21 +639,21 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Height",
                 desc   = "Height of the scroll area in pixels.",
                 order  = 14,
-                min    = TSBT.SCROLL_HEIGHT_MIN,
-                max    = TSBT.SCROLL_HEIGHT_MAX,
+                min    = KSBT.SCROLL_HEIGHT_MIN,
+                max    = KSBT.SCROLL_HEIGHT_MAX,
                 step   = 10,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.height or 300
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then
                         area.height = val
                         -- Update visualization frame in real-time
-                        if TSBT.UpdateScrollAreaFrames then
-                            TSBT.UpdateScrollAreaFrames()
+                        if KSBT.UpdateScrollAreaFrames then
+                            KSBT.UpdateScrollAreaFrames()
                         end
                     end
                 end,
@@ -676,20 +676,20 @@ function TSBT.BuildTab_ScrollAreas()
                 width  = "full",
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     local f = area and area.font
                     if not f then return true end
                     return f.useGlobal ~= false
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if not area then return end
                     area.font = area.font or {
                         useGlobal = true,
-                        face      = TSBT.db.profile.general.font.face,
-                        size      = TSBT.db.profile.general.font.size,
-                        outline   = TSBT.db.profile.general.font.outline,
-                        alpha     = TSBT.db.profile.general.font.alpha,
+                        face      = KSBT.db.profile.general.font.face,
+                        size      = KSBT.db.profile.general.font.size,
+                        outline   = KSBT.db.profile.general.font.outline,
+                        alpha     = KSBT.db.profile.general.font.alpha,
                     }
                     area.font.useGlobal = val and true or false
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
@@ -700,18 +700,18 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Font Face",
                 desc   = "Font used for this scroll area when Use Global Font is disabled.",
                 order  = 17,
-                values = function() return TSBT.BuildFontDropdown() end,
+                values = function() return KSBT.BuildFontDropdown() end,
                 hidden = function()
                     if not selectedScrollArea then return true end
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return not area or not area.font or area.font.useGlobal ~= false
                 end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
-                    return area and area.font and area.font.face or TSBT.db.profile.general.font.face
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
+                    return area and area.font and area.font.face or KSBT.db.profile.general.font.face
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if not area then return end
                     area.font = area.font or { useGlobal = false }
                     area.font.face = val
@@ -722,20 +722,20 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Font Size",
                 desc   = "Font size for this scroll area when Use Global Font is disabled.",
                 order  = 18,
-                min    = TSBT.FONT_SIZE_MIN,
-                max    = TSBT.FONT_SIZE_MAX,
+                min    = KSBT.FONT_SIZE_MIN,
+                max    = KSBT.FONT_SIZE_MAX,
                 step   = 1,
                 hidden = function()
                     if not selectedScrollArea then return true end
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return not area or not area.font or area.font.useGlobal ~= false
                 end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
-                    return area and area.font and area.font.size or TSBT.db.profile.general.font.size
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
+                    return area and area.font and area.font.size or KSBT.db.profile.general.font.size
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if not area then return end
                     area.font = area.font or { useGlobal = false }
                     area.font.size = val
@@ -746,18 +746,18 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Outline Style",
                 desc   = "Outline style for this scroll area when Use Global Font is disabled.",
                 order  = 19,
-                values = TSBT.ValuesFromKeys(TSBT.OUTLINE_STYLES),
+                values = KSBT.ValuesFromKeys(KSBT.OUTLINE_STYLES),
                 hidden = function()
                     if not selectedScrollArea then return true end
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return not area or not area.font or area.font.useGlobal ~= false
                 end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
-                    return area and area.font and area.font.outline or TSBT.db.profile.general.font.outline
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
+                    return area and area.font and area.font.outline or KSBT.db.profile.general.font.outline
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if not area then return end
                     area.font = area.font or { useGlobal = false }
                     area.font.outline = val
@@ -768,21 +768,21 @@ function TSBT.BuildTab_ScrollAreas()
                 name      = "Text Opacity",
                 desc      = "Text opacity for this scroll area when Use Global Font is disabled.",
                 order     = 20,
-                min       = TSBT.ALPHA_MIN,
-                max       = TSBT.ALPHA_MAX,
+                min       = KSBT.ALPHA_MIN,
+                max       = KSBT.ALPHA_MAX,
                 step      = 0.05,
                 isPercent = true,
                 hidden = function()
                     if not selectedScrollArea then return true end
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return not area or not area.font or area.font.useGlobal ~= false
                 end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
-                    return area and area.font and area.font.alpha or TSBT.db.profile.general.font.alpha
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
+                    return area and area.font and area.font.alpha or KSBT.db.profile.general.font.alpha
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if not area then return end
                     area.font = area.font or { useGlobal = false }
                     area.font.alpha = val
@@ -810,14 +810,14 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Text Alignment",
                 desc   = "Horizontal text alignment within the scroll area.",
                 order  = 22,
-                values = TSBT.ValuesFromKeys(TSBT.TEXT_ALIGNMENTS),
+                values = KSBT.ValuesFromKeys(KSBT.TEXT_ALIGNMENTS),
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.alignment or "Center"
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then area.alignment = val end
                 end,
             },
@@ -826,14 +826,14 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Scroll Direction",
                 desc   = "Direction text scrolls.",
                 order  = 23,
-                values = TSBT.ValuesFromKeys(TSBT.SCROLL_DIRECTIONS),
+                values = KSBT.ValuesFromKeys(KSBT.SCROLL_DIRECTIONS),
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.direction or "Up"
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then area.direction = val end
                 end,
             },
@@ -842,14 +842,14 @@ function TSBT.BuildTab_ScrollAreas()
                 name   = "Animation Style",
                 desc   = "How text moves through the scroll area.",
                 order  = 24,
-                values = TSBT.ValuesFromKeys(TSBT.ANIMATION_STYLES),
+                values = KSBT.ValuesFromKeys(KSBT.ANIMATION_STYLES),
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.animation or "Straight"
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then area.animation = val end
                     -- Force AceConfig to re-evaluate hidden states (animSpeed depends on this)
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
@@ -867,16 +867,16 @@ function TSBT.BuildTab_ScrollAreas()
                 -- Hidden when no area selected, or when animation style is Static
                 hidden = function()
                     if not selectedScrollArea then return true end
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area and area.animation == "Static" then return true end
                     return false
                 end,
                 get    = function()
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     return area and area.animSpeed or 1.0
                 end,
                 set    = function(_, val)
-                    local area = TSBT.db.profile.scrollAreas[selectedScrollArea]
+                    local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
                     if area then area.animSpeed = val end
                 end,
             },
@@ -892,14 +892,14 @@ function TSBT.BuildTab_ScrollAreas()
                 disabled = function()
                     -- Disabled if no area selected OR if areas aren't unlocked
                     if not selectedScrollArea then return true end
-                    if TSBT.IsScrollAreasUnlocked and not TSBT.IsScrollAreasUnlocked() then
+                    if KSBT.IsScrollAreasUnlocked and not KSBT.IsScrollAreasUnlocked() then
                         return true
                     end
                     return false
                 end,
                 func     = function()
-                    if TSBT.TestScrollArea then
-                        TSBT.TestScrollArea(selectedScrollArea)
+                    if KSBT.TestScrollArea then
+                        KSBT.TestScrollArea(selectedScrollArea)
                     else
                         Addon:Print("Display system not yet available.")
                     end
@@ -908,7 +908,7 @@ function TSBT.BuildTab_ScrollAreas()
             testAllAreas = {
                 type     = "execute",
                 name     = function()
-                    if TSBT.IsContinuousTesting and TSBT.IsContinuousTesting() then
+                    if KSBT.IsContinuousTesting and KSBT.IsContinuousTesting() then
                         return "Stop All Tests"
                     end
                     return "Test All (Unlocked)"
@@ -919,22 +919,22 @@ function TSBT.BuildTab_ScrollAreas()
                 width    = full,
                 disabled = function()
                     -- Disabled if areas aren't unlocked (unless already running, then allow stop)
-                    if TSBT.IsContinuousTesting and TSBT.IsContinuousTesting() then
+                    if KSBT.IsContinuousTesting and KSBT.IsContinuousTesting() then
                         return false
                     end
-                    if TSBT.IsScrollAreasUnlocked and not TSBT.IsScrollAreasUnlocked() then
+                    if KSBT.IsScrollAreasUnlocked and not KSBT.IsScrollAreasUnlocked() then
                         return true
                     end
                     return false
                 end,
                 func     = function()
-                    if TSBT.IsContinuousTesting and TSBT.IsContinuousTesting() then
-                        if TSBT.StopContinuousTesting then
-                            TSBT.StopContinuousTesting()
+                    if KSBT.IsContinuousTesting and KSBT.IsContinuousTesting() then
+                        if KSBT.StopContinuousTesting then
+                            KSBT.StopContinuousTesting()
                         end
                     else
-                        if TSBT.StartContinuousTesting then
-                            TSBT.StartContinuousTesting()
+                        if KSBT.StartContinuousTesting then
+                            KSBT.StartContinuousTesting()
                         end
                     end
                 end,
@@ -959,13 +959,13 @@ end
 -- TAB 3: INCOMING
 -- Incoming damage and healing configuration.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_Incoming()
+function KSBT.BuildTab_Incoming()
     local function cap()
-        return TSBT.Core and TSBT.Core.IncomingProbe and TSBT.Core.IncomingProbe.cap
+        return KSBT.Core and KSBT.Core.IncomingProbe and KSBT.Core.IncomingProbe.cap
     end
 
     local function reportLine()
-        local p = TSBT.Core and TSBT.Core.IncomingProbe
+        local p = KSBT.Core and KSBT.Core.IncomingProbe
         if not p or not p.GetCapabilityReport then
             return "Incoming probe not loaded."
         end
@@ -993,17 +993,17 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Display damage taken by your character.",
                 width = "full",
                 order = 2,
-                get   = function() return TSBT.db.profile.incoming.damage.enabled end,
-                set   = function(_, val) TSBT.db.profile.incoming.damage.enabled = val end,
+                get   = function() return KSBT.db.profile.incoming.damage.enabled end,
+                set   = function(_, val) KSBT.db.profile.incoming.damage.enabled = val end,
             },
             damageScrollArea = {
                 type   = "select",
                 name   = "Scroll Area",
                 desc   = "Which scroll area displays incoming damage.",
                 order  = 3,
-                values = function() return TSBT.GetScrollAreaNames() end,
-                get    = function() return TSBT.db.profile.incoming.damage.scrollArea end,
-                set    = function(_, val) TSBT.db.profile.incoming.damage.scrollArea = val end,
+                values = function() return KSBT.GetScrollAreaNames() end,
+                get    = function() return KSBT.db.profile.incoming.damage.scrollArea end,
+                set    = function(_, val) KSBT.db.profile.incoming.damage.scrollArea = val end,
             },
             damageShowFlags = {
                 type  = "toggle",
@@ -1015,8 +1015,8 @@ function TSBT.BuildTab_Incoming()
                     local c = cap()
                     return c and c.hasFlagText == false
                 end,
-                get   = function() return TSBT.db.profile.incoming.damage.showFlags end,
-                set   = function(_, val) TSBT.db.profile.incoming.damage.showFlags = val end,
+                get   = function() return KSBT.db.profile.incoming.damage.showFlags end,
+                set   = function(_, val) KSBT.db.profile.incoming.damage.showFlags = val end,
             },
             damageMinThreshold = {
                 type    = "range",
@@ -1027,8 +1027,8 @@ function TSBT.BuildTab_Incoming()
                 max     = 10000,
                 softMax = 5000,
                 step    = 50,
-                get     = function() return TSBT.db.profile.incoming.damage.minThreshold end,
-                set     = function(_, val) TSBT.db.profile.incoming.damage.minThreshold = val end,
+                get     = function() return KSBT.db.profile.incoming.damage.minThreshold end,
+                set     = function(_, val) KSBT.db.profile.incoming.damage.minThreshold = val end,
             },
 
             ----------------------------------------------------------------
@@ -1045,17 +1045,17 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Display healing received by your character.",
                 width = "full",
                 order = 11,
-                get   = function() return TSBT.db.profile.incoming.healing.enabled end,
-                set   = function(_, val) TSBT.db.profile.incoming.healing.enabled = val end,
+                get   = function() return KSBT.db.profile.incoming.healing.enabled end,
+                set   = function(_, val) KSBT.db.profile.incoming.healing.enabled = val end,
             },
             healingScrollArea = {
                 type   = "select",
                 name   = "Scroll Area",
                 desc   = "Which scroll area displays incoming healing.",
                 order  = 12,
-                values = function() return TSBT.GetScrollAreaNames() end,
-                get    = function() return TSBT.db.profile.incoming.healing.scrollArea end,
-                set    = function(_, val) TSBT.db.profile.incoming.healing.scrollArea = val end,
+                values = function() return KSBT.GetScrollAreaNames() end,
+                get    = function() return KSBT.db.profile.incoming.healing.scrollArea end,
+                set    = function(_, val) KSBT.db.profile.incoming.healing.scrollArea = val end,
             },
             healingShowHoTs = {
                 type  = "toggle",
@@ -1067,8 +1067,8 @@ function TSBT.BuildTab_Incoming()
                     local c = cap()
                     return c and c.hasPeriodic == false
                 end,
-                get   = function() return TSBT.db.profile.incoming.healing.showHoTTicks end,
-                set   = function(_, val) TSBT.db.profile.incoming.healing.showHoTTicks = val end,
+                get   = function() return KSBT.db.profile.incoming.healing.showHoTTicks end,
+                set   = function(_, val) KSBT.db.profile.incoming.healing.showHoTTicks = val end,
             },
             healingMinThreshold = {
                 type    = "range",
@@ -1079,8 +1079,8 @@ function TSBT.BuildTab_Incoming()
                 max     = 10000,
                 softMax = 5000,
                 step    = 50,
-                get     = function() return TSBT.db.profile.incoming.healing.minThreshold end,
-                set     = function(_, val) TSBT.db.profile.incoming.healing.minThreshold = val end,
+                get     = function() return KSBT.db.profile.incoming.healing.minThreshold end,
+                set     = function(_, val) KSBT.db.profile.incoming.healing.minThreshold = val end,
             },
 
             ----------------------------------------------------------------
@@ -1101,21 +1101,21 @@ function TSBT.BuildTab_Incoming()
                     local c = cap()
                     return c and c.hasSchool == false
                 end,
-                get   = function() return TSBT.db.profile.incoming.useSchoolColors end,
-                set   = function(_, val) TSBT.db.profile.incoming.useSchoolColors = val end,
+                get   = function() return KSBT.db.profile.incoming.useSchoolColors end,
+                set   = function(_, val) KSBT.db.profile.incoming.useSchoolColors = val end,
             },
             customColor = {
                 type     = "color",
                 name     = "Custom Color Override",
                 desc     = "Fallback color when school colors are disabled.",
                 order    = 22,
-                disabled = function() return TSBT.db.profile.incoming.useSchoolColors end,
+                disabled = function() return KSBT.db.profile.incoming.useSchoolColors end,
                 get      = function()
-                    local c = TSBT.db.profile.incoming.customColor
+                    local c = KSBT.db.profile.incoming.customColor
                     return c.r, c.g, c.b
                 end,
                 set      = function(_, r, g, b)
-                    local c = TSBT.db.profile.incoming.customColor
+                    local c = KSBT.db.profile.incoming.customColor
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -1141,7 +1141,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Capture real incoming UNIT_COMBAT events for 10 seconds and emit them live.",
                 order = 32,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.StartCapture then p:StartCapture(10) end
                 end,
             },
@@ -1151,7 +1151,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Capture real incoming UNIT_COMBAT events for 30 seconds and emit them live.",
                 order = 33,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.StartCapture then p:StartCapture(30) end
                 end,
             },
@@ -1161,7 +1161,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Stop capture early.",
                 order = 34,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.StopCapture then p:StopCapture(false) end
                 end,
             },
@@ -1171,7 +1171,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Replay the captured sample through display routing.",
                 order = 35,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.Replay then p:Replay(1.0) end
                 end,
             },
@@ -1181,7 +1181,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Replay faster.",
                 order = 36,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.Replay then p:Replay(2.0) end
                 end,
             },
@@ -1191,7 +1191,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Stop replay early.",
                 order = 37,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.StopReplay then p:StopReplay(false) end
                 end,
             },
@@ -1201,7 +1201,7 @@ function TSBT.BuildTab_Incoming()
                 desc  = "Print a one-line capability report to chat.",
                 order = 38,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.IncomingProbe
+                    local p = KSBT.Core and KSBT.Core.IncomingProbe
                     if p and p.PrintCapabilityReport then p:PrintCapabilityReport() end
                 end,
             },
@@ -1214,9 +1214,9 @@ end
 -- TAB 4: OUTGOING
 -- Outgoing damage and healing configuration.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_Outgoing()
+function KSBT.BuildTab_Outgoing()
     local function reportLine()
-        local p = TSBT.Core and TSBT.Core.OutgoingProbe
+        local p = KSBT.Core and KSBT.Core.OutgoingProbe
         if not p or not p.GetStatusLine then
             return "Outgoing probe not available."
         end
@@ -1251,8 +1251,8 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Display damage dealt by your character.",
                 width = "full",
                 order = 2,
-                get   = function() return TSBT.db.profile.outgoing.damage.enabled end,
-                set   = function(_, val) TSBT.db.profile.outgoing.damage.enabled = val end,
+                get   = function() return KSBT.db.profile.outgoing.damage.enabled end,
+                set   = function(_, val) KSBT.db.profile.outgoing.damage.enabled = val end,
             },
             showSpellNames = {
                 type  = "toggle",
@@ -1260,17 +1260,17 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Append the spell name after damage numbers.",
                 width = "full",
                 order = 3,
-                get   = function() return TSBT.db.profile.outgoing.showSpellNames end,
-                set   = function(_, val) TSBT.db.profile.outgoing.showSpellNames = val end,
+                get   = function() return KSBT.db.profile.outgoing.showSpellNames end,
+                set   = function(_, val) KSBT.db.profile.outgoing.showSpellNames = val end,
             },
             damageScrollArea = {
                 type   = "select",
                 name   = "Scroll Area",
                 desc   = "Which scroll area displays outgoing damage.",
                 order  = 4,
-                values = function() return TSBT.GetScrollAreaNames() end,
-                get    = function() return TSBT.db.profile.outgoing.damage.scrollArea end,
-                set    = function(_, val) TSBT.db.profile.outgoing.damage.scrollArea = val end,
+                values = function() return KSBT.GetScrollAreaNames() end,
+                get    = function() return KSBT.db.profile.outgoing.damage.scrollArea end,
+                set    = function(_, val) KSBT.db.profile.outgoing.damage.scrollArea = val end,
             },
             showTargets = {
                 type  = "toggle",
@@ -1278,17 +1278,17 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Display target name alongside damage numbers (where available).",
                 width = "full",
                 order = 5,
-                get   = function() return TSBT.db.profile.outgoing.damage.showTargets end,
-                set   = function(_, val) TSBT.db.profile.outgoing.damage.showTargets = val end,
+                get   = function() return KSBT.db.profile.outgoing.damage.showTargets end,
+                set   = function(_, val) KSBT.db.profile.outgoing.damage.showTargets = val end,
             },
             autoAttackMode = {
                 type   = "select",
                 name   = "Auto-Attack Display",
                 desc   = "How to display auto-attack/auto-shot damage.",
                 order  = 6,
-                values = TSBT.ValuesFromKeys(TSBT.AUTOATTACK_MODES),
-                get    = function() return TSBT.db.profile.outgoing.damage.autoAttackMode end,
-                set    = function(_, val) TSBT.db.profile.outgoing.damage.autoAttackMode = val end,
+                values = KSBT.ValuesFromKeys(KSBT.AUTOATTACK_MODES),
+                get    = function() return KSBT.db.profile.outgoing.damage.autoAttackMode end,
+                set    = function(_, val) KSBT.db.profile.outgoing.damage.autoAttackMode = val end,
             },
             damageMinThreshold = {
                 type    = "range",
@@ -1299,8 +1299,8 @@ function TSBT.BuildTab_Outgoing()
                 max     = 10000,
                 softMax = 5000,
                 step    = 50,
-                get     = function() return TSBT.db.profile.outgoing.damage.minThreshold end,
-                set     = function(_, val) TSBT.db.profile.outgoing.damage.minThreshold = val end,
+                get     = function() return KSBT.db.profile.outgoing.damage.minThreshold end,
+                set     = function(_, val) KSBT.db.profile.outgoing.damage.minThreshold = val end,
             },
 
             ----------------------------------------------------------------
@@ -1317,17 +1317,17 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Display healing done by your character.",
                 width = "full",
                 order = 11,
-                get   = function() return TSBT.db.profile.outgoing.healing.enabled end,
-                set   = function(_, val) TSBT.db.profile.outgoing.healing.enabled = val end,
+                get   = function() return KSBT.db.profile.outgoing.healing.enabled end,
+                set   = function(_, val) KSBT.db.profile.outgoing.healing.enabled = val end,
             },
             healingScrollArea = {
                 type   = "select",
                 name   = "Scroll Area",
                 desc   = "Which scroll area displays outgoing healing.",
                 order  = 12,
-                values = function() return TSBT.GetScrollAreaNames() end,
-                get    = function() return TSBT.db.profile.outgoing.healing.scrollArea end,
-                set    = function(_, val) TSBT.db.profile.outgoing.healing.scrollArea = val end,
+                values = function() return KSBT.GetScrollAreaNames() end,
+                get    = function() return KSBT.db.profile.outgoing.healing.scrollArea end,
+                set    = function(_, val) KSBT.db.profile.outgoing.healing.scrollArea = val end,
             },
             showOverheal = {
                 type  = "toggle",
@@ -1335,8 +1335,8 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Display overhealing amounts.",
                 width = "full",
                 order = 13,
-                get   = function() return TSBT.db.profile.outgoing.healing.showOverheal end,
-                set   = function(_, val) TSBT.db.profile.outgoing.healing.showOverheal = val end,
+                get   = function() return KSBT.db.profile.outgoing.healing.showOverheal end,
+                set   = function(_, val) KSBT.db.profile.outgoing.healing.showOverheal = val end,
             },
             healingMinThreshold = {
                 type    = "range",
@@ -1347,8 +1347,8 @@ function TSBT.BuildTab_Outgoing()
                 max     = 10000,
                 softMax = 5000,
                 step    = 50,
-                get     = function() return TSBT.db.profile.outgoing.healing.minThreshold end,
-                set     = function(_, val) TSBT.db.profile.outgoing.healing.minThreshold = val end,
+                get     = function() return KSBT.db.profile.outgoing.healing.minThreshold end,
+                set     = function(_, val) KSBT.db.profile.outgoing.healing.minThreshold = val end,
             },
 
             ----------------------------------------------------------------
@@ -1372,7 +1372,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Capture real outgoing CLEU events for 45 seconds and emit them live.",
                 order = 22,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.StartCapture then p:StartCapture(45) end
                 end,
             },
@@ -1382,7 +1382,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Longer capture to reliably observe at least one natural auto-attack crit.",
                 order = 23,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.StartCapture then p:StartCapture(90) end
                 end,
             },
@@ -1392,7 +1392,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Stop capture early.",
                 order = 24,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.StopCapture then p:StopCapture(false) end
                 end,
             },
@@ -1402,7 +1402,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Replay the captured sample through display routing.",
                 order = 25,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.Replay then p:Replay(1.0) end
                 end,
             },
@@ -1412,7 +1412,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Replay faster.",
                 order = 26,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.Replay then p:Replay(2.0) end
                 end,
             },
@@ -1422,7 +1422,7 @@ function TSBT.BuildTab_Outgoing()
                 desc  = "Stop replay early.",
                 order = 27,
                 func  = function()
-                    local p = TSBT.Core and TSBT.Core.OutgoingProbe
+                    local p = KSBT.Core and KSBT.Core.OutgoingProbe
                     if p and p.StopReplay then p:StopReplay(false) end
                 end,
             },
@@ -1434,7 +1434,7 @@ end
 -- TAB 5: PETS
 -- Pet damage display configuration.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_Pets()
+function KSBT.BuildTab_Pets()
     return {
         type  = "group",
         name  = "Pets",
@@ -1451,26 +1451,26 @@ function TSBT.BuildTab_Pets()
                 desc  = "Display damage dealt by your pets and guardians.",
                 width = "full",
                 order = 2,
-                get   = function() return TSBT.db.profile.pets.enabled end,
-                set   = function(_, val) TSBT.db.profile.pets.enabled = val end,
+                get   = function() return KSBT.db.profile.pets.enabled end,
+                set   = function(_, val) KSBT.db.profile.pets.enabled = val end,
             },
             scrollArea = {
                 type   = "select",
                 name   = "Scroll Area",
                 desc   = "Which scroll area displays pet damage.",
                 order  = 3,
-                values = function() return TSBT.GetScrollAreaNames() end,
-                get    = function() return TSBT.db.profile.pets.scrollArea end,
-                set    = function(_, val) TSBT.db.profile.pets.scrollArea = val end,
+                values = function() return KSBT.GetScrollAreaNames() end,
+                get    = function() return KSBT.db.profile.pets.scrollArea end,
+                set    = function(_, val) KSBT.db.profile.pets.scrollArea = val end,
             },
             aggregation = {
                 type   = "select",
                 name   = "Aggregation Style",
                 desc   = "How pet damage is labeled.",
                 order  = 4,
-                values = TSBT.ValuesFromKeys(TSBT.PET_AGGREGATION),
-                get    = function() return TSBT.db.profile.pets.aggregation end,
-                set    = function(_, val) TSBT.db.profile.pets.aggregation = val end,
+                values = KSBT.ValuesFromKeys(KSBT.PET_AGGREGATION),
+                get    = function() return KSBT.db.profile.pets.aggregation end,
+                set    = function(_, val) KSBT.db.profile.pets.aggregation = val end,
             },
             minThreshold = {
                 type    = "range",
@@ -1481,8 +1481,8 @@ function TSBT.BuildTab_Pets()
                 max     = 10000,
                 softMax = 5000,
                 step    = 50,
-                get     = function() return TSBT.db.profile.pets.minThreshold end,
-                set     = function(_, val) TSBT.db.profile.pets.minThreshold = val end,
+                get     = function() return KSBT.db.profile.pets.minThreshold end,
+                set     = function(_, val) KSBT.db.profile.pets.minThreshold = val end,
             },
 
             ----------------------------------------------------------------
@@ -1505,7 +1505,7 @@ end
 -- TAB 6: SPAM CONTROL
 -- Merging, throttling, and special suppression settings.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_SpamControl()
+function KSBT.BuildTab_SpamControl()
     return {
         type  = "group",
         name  = "Spam Control",
@@ -1532,20 +1532,20 @@ function TSBT.BuildTab_SpamControl()
                 desc  = "Merge rapid repeated hits from the same spell.",
                 width = "full",
                 order = 3,
-                get   = function() return TSBT.db.profile.spamControl.merging.enabled end,
-                set   = function(_, val) TSBT.db.profile.spamControl.merging.enabled = val end,
+                get   = function() return KSBT.db.profile.spamControl.merging.enabled end,
+                set   = function(_, val) KSBT.db.profile.spamControl.merging.enabled = val end,
             },
             mergeWindow = {
                 type     = "range",
                 name     = "Merge Window (seconds)",
                 desc     = "Time window to group hits from the same spell.",
                 order    = 4,
-                min      = TSBT.MERGE_WINDOW_MIN,
-                max      = TSBT.MERGE_WINDOW_MAX,
+                min      = KSBT.MERGE_WINDOW_MIN,
+                max      = KSBT.MERGE_WINDOW_MAX,
                 step     = 0.1,
-                disabled = function() return not TSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return TSBT.db.profile.spamControl.merging.window end,
-                set      = function(_, val) TSBT.db.profile.spamControl.merging.window = val end,
+                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.merging.window end,
+                set      = function(_, val) KSBT.db.profile.spamControl.merging.window = val end,
             },
             mergeShowCount = {
                 type     = "toggle",
@@ -1553,9 +1553,9 @@ function TSBT.BuildTab_SpamControl()
                 desc     = "Display hit count (e.g., \"x3\") alongside merged damage.",
                 width    = "full",
                 order    = 5,
-                disabled = function() return not TSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return TSBT.db.profile.spamControl.merging.showCount end,
-                set      = function(_, val) TSBT.db.profile.spamControl.merging.showCount = val end,
+                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.merging.showCount end,
+                set      = function(_, val) KSBT.db.profile.spamControl.merging.showCount = val end,
             },
 
             ----------------------------------------------------------------
@@ -1575,8 +1575,8 @@ function TSBT.BuildTab_SpamControl()
                 max     = 10000,
                 softMax = 2000,
                 step    = 25,
-                get     = function() return TSBT.db.profile.spamControl.throttling.minDamage end,
-                set     = function(_, val) TSBT.db.profile.spamControl.throttling.minDamage = val end,
+                get     = function() return KSBT.db.profile.spamControl.throttling.minDamage end,
+                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minDamage = val end,
             },
             minHealing = {
                 type    = "range",
@@ -1587,8 +1587,8 @@ function TSBT.BuildTab_SpamControl()
                 max     = 10000,
                 softMax = 2000,
                 step    = 25,
-                get     = function() return TSBT.db.profile.spamControl.throttling.minHealing end,
-                set     = function(_, val) TSBT.db.profile.spamControl.throttling.minHealing = val end,
+                get     = function() return KSBT.db.profile.spamControl.throttling.minHealing end,
+                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minHealing = val end,
             },
             hideAutoBelow = {
                 type    = "range",
@@ -1599,8 +1599,8 @@ function TSBT.BuildTab_SpamControl()
                 max     = 5000,
                 softMax = 1000,
                 step    = 25,
-                get     = function() return TSBT.db.profile.spamControl.throttling.hideAutoBelow end,
-                set     = function(_, val) TSBT.db.profile.spamControl.throttling.hideAutoBelow = val end,
+                get     = function() return KSBT.db.profile.spamControl.throttling.hideAutoBelow end,
+                set     = function(_, val) KSBT.db.profile.spamControl.throttling.hideAutoBelow = val end,
             },
 
             ----------------------------------------------------------------
@@ -1618,8 +1618,8 @@ function TSBT.BuildTab_SpamControl()
                         "generate (these are not real damage).",
                 width = "full",
                 order = 21,
-                get   = function() return TSBT.db.profile.spamControl.suppressDummyDamage end,
-                set   = function(_, val) TSBT.db.profile.spamControl.suppressDummyDamage = val end,
+                get   = function() return KSBT.db.profile.spamControl.suppressDummyDamage end,
+                set   = function(_, val) KSBT.db.profile.spamControl.suppressDummyDamage = val end,
             },
         },
     }
@@ -1634,7 +1634,7 @@ end
 -- Module-level state for spell input
 local cooldownSpellInput = ""
 
-function TSBT.BuildTab_Cooldowns()
+function KSBT.BuildTab_Cooldowns()
     return {
         type  = "group",
         name  = "Cooldowns",
@@ -1651,18 +1651,18 @@ function TSBT.BuildTab_Cooldowns()
                 desc  = "Display a notification when tracked spells come off cooldown.",
                 width = "full",
                 order = 2,
-                get   = function() return TSBT.db.profile.cooldowns.enabled end,
-                set   = function(_, val) TSBT.db.profile.cooldowns.enabled = val end,
+                get   = function() return KSBT.db.profile.cooldowns.enabled end,
+                set   = function(_, val) KSBT.db.profile.cooldowns.enabled = val end,
             },
             scrollArea = {
                 type     = "select",
                 name     = "Scroll Area",
                 desc     = "Which scroll area displays cooldown notifications.",
                 order    = 3,
-                values   = function() return TSBT.GetScrollAreaNames() end,
-                disabled = function() return not TSBT.db.profile.cooldowns.enabled end,
-                get      = function() return TSBT.db.profile.cooldowns.scrollArea end,
-                set      = function(_, val) TSBT.db.profile.cooldowns.scrollArea = val end,
+                values   = function() return KSBT.GetScrollAreaNames() end,
+                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
+                get      = function() return KSBT.db.profile.cooldowns.scrollArea end,
+                set      = function(_, val) KSBT.db.profile.cooldowns.scrollArea = val end,
             },
             format = {
                 type     = "input",
@@ -1670,9 +1670,9 @@ function TSBT.BuildTab_Cooldowns()
                 desc     = "Text format for cooldown notifications. Use %s for spell name.",
                 order    = 4,
                 width    = "double",
-                disabled = function() return not TSBT.db.profile.cooldowns.enabled end,
-                get      = function() return TSBT.db.profile.cooldowns.format end,
-                set      = function(_, val) TSBT.db.profile.cooldowns.format = val end,
+                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
+                get      = function() return KSBT.db.profile.cooldowns.format end,
+                set      = function(_, val) KSBT.db.profile.cooldowns.format = val end,
             },
             -- Sound dropdown: standard select using BuildSoundDropdown()
             sound = {
@@ -1680,11 +1680,11 @@ function TSBT.BuildTab_Cooldowns()
                 name     = "Notification Sound",
                 desc     = "Sound to play when a cooldown finishes.",
                 order    = 5,
-                values   = function() return TSBT.BuildSoundDropdown() end,
+                values   = function() return KSBT.BuildSoundDropdown() end,
                 -- No dialogControl — uses standard dropdown
-                disabled = function() return not TSBT.db.profile.cooldowns.enabled end,
-                get      = function() return TSBT.db.profile.cooldowns.sound end,
-                set      = function(_, val) TSBT.db.profile.cooldowns.sound = val end,
+                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
+                get      = function() return KSBT.db.profile.cooldowns.sound end,
+                set      = function(_, val) KSBT.db.profile.cooldowns.sound = val end,
             },
             -- Test button for cooldown sound
             testCooldownSound = {
@@ -1693,9 +1693,9 @@ function TSBT.BuildTab_Cooldowns()
                 desc     = "Preview the selected notification sound.",
                 order    = 6,
                 width    = "half",
-                disabled = function() return not TSBT.db.profile.cooldowns.enabled end,
+                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
                 func     = function()
-                    TSBT.PlayLSMSound(TSBT.db.profile.cooldowns.sound)
+                    KSBT.PlayLSMSound(KSBT.db.profile.cooldowns.sound)
                 end,
             },
 
@@ -1711,20 +1711,20 @@ function TSBT.BuildTab_Cooldowns()
                 type     = "description",
                 name     = function()
                     -- Trigger overlay creation when this renders
-                    if TSBT.CreateCooldownDropOverlay then
-                        C_Timer.After(0.1, TSBT.CreateCooldownDropOverlay)
+                    if KSBT.CreateCooldownDropOverlay then
+                        C_Timer.After(0.1, KSBT.CreateCooldownDropOverlay)
                     end
                     return ""  -- Empty - overlay will render over this space
                 end,
                 order    = 11,
-                hidden   = function() return not TSBT.db.profile.cooldowns.enabled end,
+                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
             },
             manualEntryLabel = {
                 type     = "description",
                 name     = "\n\n\n\n\n\n\n\n|cFFFFFFFFOr enter spell ID manually:|r",
                 order    = 20,
                 fontSize = "medium",
-                hidden   = function() return not TSBT.db.profile.cooldowns.enabled end,
+                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
             },
             addSpellInput = {
                 type     = "input",
@@ -1732,7 +1732,7 @@ function TSBT.BuildTab_Cooldowns()
                 desc     = "Enter a numeric spell ID to track.",
                 order    = 21,
                 width    = "normal",
-                disabled = function() return not TSBT.db.profile.cooldowns.enabled end,
+                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
                 get      = function() return cooldownSpellInput end,
                 set      = function(_, val)
                     local spellID = tonumber(val)
@@ -1740,10 +1740,10 @@ function TSBT.BuildTab_Cooldowns()
                         -- Validate the spell exists before adding
                         local name = SafeGetSpellName(spellID)
                         if name then
-                            TSBT.db.profile.cooldowns.tracked[spellID] = true
+                            KSBT.db.profile.cooldowns.tracked[spellID] = true
                             Addon:Print("Now tracking: " .. name .. " (ID: " .. spellID .. ")")
                         else
-                            TSBT.db.profile.cooldowns.tracked[spellID] = true
+                            KSBT.db.profile.cooldowns.tracked[spellID] = true
                             Addon:Print("Now tracking spell ID: " .. spellID .. " (name not found)")
                         end
                         cooldownSpellInput = ""
@@ -1762,7 +1762,7 @@ function TSBT.BuildTab_Cooldowns()
                 order    = 22,
                 width    = "half",
                 disabled = function()
-                    if not TSBT.db.profile.cooldowns.enabled then return true end
+                    if not KSBT.db.profile.cooldowns.enabled then return true end
                     return tonumber(cooldownSpellInput) == nil
                 end,
                 func     = function()
@@ -1770,10 +1770,10 @@ function TSBT.BuildTab_Cooldowns()
                     if spellID then
                         local name = SafeGetSpellName(spellID)
                         if name then
-                            TSBT.db.profile.cooldowns.tracked[spellID] = true
+                            KSBT.db.profile.cooldowns.tracked[spellID] = true
                             Addon:Print("Now tracking: " .. name .. " (ID: " .. spellID .. ")")
                         else
-                            TSBT.db.profile.cooldowns.tracked[spellID] = true
+                            KSBT.db.profile.cooldowns.tracked[spellID] = true
                             Addon:Print("Now tracking spell ID: " .. spellID .. " (name not found)")
                         end
                         cooldownSpellInput = ""
@@ -1784,7 +1784,7 @@ function TSBT.BuildTab_Cooldowns()
             trackedListHeader = {
                 type     = "description",
                 name     = function()
-                    local tracked = TSBT.db.profile.cooldowns.tracked
+                    local tracked = KSBT.db.profile.cooldowns.tracked
                     local count = 0
                     for _ in pairs(tracked) do count = count + 1 end
                     if count == 0 then
@@ -1802,7 +1802,7 @@ function TSBT.BuildTab_Cooldowns()
                 childGroups = "tree",  -- Makes it a collapsible tree with auto-scroll
                 hidden   = function()
                     local count = 0
-                    for _ in pairs(TSBT.db.profile.cooldowns.tracked) do count = count + 1 end
+                    for _ in pairs(KSBT.db.profile.cooldowns.tracked) do count = count + 1 end
                     return count == 0
                 end,
                 args     = {},  -- Will be populated dynamically below
@@ -1822,9 +1822,9 @@ StaticPopupDialogs["TRUESTRIKE_REMOVE_SPELL"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(self, idKey)
-        if TSBT.db and TSBT.db.profile and TSBT.db.profile.cooldowns then
-            TSBT.db.profile.cooldowns.tracked[idKey] = nil
-            TSBT.Addon:Print("Stopped tracking: " .. tostring(idKey))
+        if KSBT.db and KSBT.db.profile and KSBT.db.profile.cooldowns then
+            KSBT.db.profile.cooldowns.tracked[idKey] = nil
+            KSBT.Addon:Print("Stopped tracking: " .. tostring(idKey))
             -- Refresh the config UI to remove the spell row
             LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
         end
@@ -1844,12 +1844,12 @@ StaticPopupDialogs["TRUESTRIKE_DELETE_SCROLLAREA"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(_, areaName)
-        if not areaName or not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.scrollAreas then
+        if not areaName or not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.scrollAreas then
             return
         end
 
-        TSBT.db.profile.scrollAreas[areaName] = nil
-        TSBT.Addon:Print("Deleted scroll area: " .. tostring(areaName))
+        KSBT.db.profile.scrollAreas[areaName] = nil
+        KSBT.Addon:Print("Deleted scroll area: " .. tostring(areaName))
 
         -- Re-select a valid area (prefer Incoming if it exists)
         local newSel = GetFallbackScrollAreaName()
@@ -1862,8 +1862,8 @@ StaticPopupDialogs["TRUESTRIKE_DELETE_SCROLLAREA"] = {
         selectedScrollArea = newSel
         renameScrollAreaBuffer = ""
 
-        if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() and TSBT.RefreshScrollAreaFrames then
-            TSBT.RefreshScrollAreaFrames()
+        if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() and KSBT.RefreshScrollAreaFrames then
+            KSBT.RefreshScrollAreaFrames()
         end
 
         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
@@ -1879,16 +1879,16 @@ StaticPopupDialogs["TRUESTRIKE_DELETE_LAST_SCROLLAREA"] = {
     button1 = "OK",
     button2 = "Cancel",
     OnAccept = function(_, areaName)
-        if not areaName or not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.scrollAreas then
+        if not areaName or not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.scrollAreas then
             return
         end
 
         -- Delete the last remaining area.
-        TSBT.db.profile.scrollAreas[areaName] = nil
+        KSBT.db.profile.scrollAreas[areaName] = nil
 
         -- Create a new default area (prefer Incoming as the canonical default).
         local newName = "Incoming"
-        if TSBT.db.profile.scrollAreas[newName] then
+        if KSBT.db.profile.scrollAreas[newName] then
             newName = MakeUniqueScrollAreaName("New Area")
         end
         newName = CreateDefaultScrollArea(newName)
@@ -1897,12 +1897,12 @@ StaticPopupDialogs["TRUESTRIKE_DELETE_LAST_SCROLLAREA"] = {
         selectedScrollArea = newName
         renameScrollAreaBuffer = ""
 
-        if TSBT.IsScrollAreasUnlocked and TSBT.IsScrollAreasUnlocked() and TSBT.RefreshScrollAreaFrames then
-            TSBT.RefreshScrollAreaFrames()
+        if KSBT.IsScrollAreasUnlocked and KSBT.IsScrollAreasUnlocked() and KSBT.RefreshScrollAreaFrames then
+            KSBT.RefreshScrollAreaFrames()
         end
 
         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
-        TSBT.Addon:Print("Created new default scroll area: " .. tostring(newName))
+        KSBT.Addon:Print("Created new default scroll area: " .. tostring(newName))
     end,
     timeout = 0,
     whileDead = true,
@@ -1919,9 +1919,9 @@ StaticPopupDialogs["TRUESTRIKE_DELETE_LAST_SCROLLAREA"] = {
 -- "get children dynamically" pattern via the args function closures.
 ------------------------------------------------------------------------
 do
-    local originalBuilder = TSBT.BuildTab_Cooldowns
+    local originalBuilder = KSBT.BuildTab_Cooldowns
 
-    TSBT.BuildTab_Cooldowns = function()
+    KSBT.BuildTab_Cooldowns = function()
         local tab = originalBuilder()
 
         -- Get the tracked list container
@@ -1935,7 +1935,7 @@ do
 
             local function getSlotIDKey()
                 local sorted = {}
-                for idKey, _ in pairs(TSBT.db.profile.cooldowns.tracked) do
+                for idKey, _ in pairs(KSBT.db.profile.cooldowns.tracked) do
                     sorted[#sorted + 1] = idKey
                 end
                 -- Mixed types (numbers for spells, strings for items) require a safe comparator
@@ -2014,7 +2014,7 @@ end
 -- All sound dropdowns use standard select with BuildSoundDropdown().
 -- Each sound dropdown has a "Play Sound" test button.
 ------------------------------------------------------------------------
-function TSBT.BuildTab_Media()
+function KSBT.BuildTab_Media()
     return {
         type  = "group",
         name  = "Media",
@@ -2034,10 +2034,10 @@ function TSBT.BuildTab_Media()
                 name   = "Low Health Warning",
                 desc   = "Sound to play when your health drops to critical levels.",
                 order  = 2,
-                values = function() return TSBT.BuildSoundDropdown() end,
+                values = function() return KSBT.BuildSoundDropdown() end,
                 -- No dialogControl — uses standard dropdown
-                get    = function() return TSBT.db.profile.media.sounds.lowHealth end,
-                set    = function(_, val) TSBT.db.profile.media.sounds.lowHealth = val end,
+                get    = function() return KSBT.db.profile.media.sounds.lowHealth end,
+                set    = function(_, val) KSBT.db.profile.media.sounds.lowHealth = val end,
             },
             testLowHealth = {
                 type  = "execute",
@@ -2046,7 +2046,7 @@ function TSBT.BuildTab_Media()
                 order = 3,
                 width = "half",
                 func  = function()
-                    TSBT.PlayLSMSound(TSBT.db.profile.media.sounds.lowHealth)
+                    KSBT.PlayLSMSound(KSBT.db.profile.media.sounds.lowHealth)
                 end,
             },
             -- Cooldown Ready sound: standard select
@@ -2055,10 +2055,10 @@ function TSBT.BuildTab_Media()
                 name   = "Cooldown Ready",
                 desc   = "Sound to play when a tracked cooldown finishes.",
                 order  = 4,
-                values = function() return TSBT.BuildSoundDropdown() end,
+                values = function() return KSBT.BuildSoundDropdown() end,
                 -- No dialogControl — uses standard dropdown
-                get    = function() return TSBT.db.profile.media.sounds.cooldownReady end,
-                set    = function(_, val) TSBT.db.profile.media.sounds.cooldownReady = val end,
+                get    = function() return KSBT.db.profile.media.sounds.cooldownReady end,
+                set    = function(_, val) KSBT.db.profile.media.sounds.cooldownReady = val end,
             },
             testCooldownReady = {
                 type  = "execute",
@@ -2067,7 +2067,7 @@ function TSBT.BuildTab_Media()
                 order = 5,
                 width = "half",
                 func  = function()
-                    TSBT.PlayLSMSound(TSBT.db.profile.media.sounds.cooldownReady)
+                    KSBT.PlayLSMSound(KSBT.db.profile.media.sounds.cooldownReady)
                 end,
             },
 
@@ -2091,11 +2091,11 @@ function TSBT.BuildTab_Media()
                 name  = "Physical",
                 order = 12,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.physical
+                    local c = KSBT.db.profile.media.schoolColors.physical
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.physical
+                    local c = KSBT.db.profile.media.schoolColors.physical
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2104,11 +2104,11 @@ function TSBT.BuildTab_Media()
                 name  = "Holy",
                 order = 13,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.holy
+                    local c = KSBT.db.profile.media.schoolColors.holy
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.holy
+                    local c = KSBT.db.profile.media.schoolColors.holy
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2117,11 +2117,11 @@ function TSBT.BuildTab_Media()
                 name  = "Fire",
                 order = 14,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.fire
+                    local c = KSBT.db.profile.media.schoolColors.fire
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.fire
+                    local c = KSBT.db.profile.media.schoolColors.fire
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2130,11 +2130,11 @@ function TSBT.BuildTab_Media()
                 name  = "Nature",
                 order = 15,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.nature
+                    local c = KSBT.db.profile.media.schoolColors.nature
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.nature
+                    local c = KSBT.db.profile.media.schoolColors.nature
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2143,11 +2143,11 @@ function TSBT.BuildTab_Media()
                 name  = "Frost",
                 order = 16,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.frost
+                    local c = KSBT.db.profile.media.schoolColors.frost
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.frost
+                    local c = KSBT.db.profile.media.schoolColors.frost
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2156,11 +2156,11 @@ function TSBT.BuildTab_Media()
                 name  = "Shadow",
                 order = 17,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.shadow
+                    local c = KSBT.db.profile.media.schoolColors.shadow
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.shadow
+                    local c = KSBT.db.profile.media.schoolColors.shadow
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2169,11 +2169,11 @@ function TSBT.BuildTab_Media()
                 name  = "Arcane",
                 order = 18,
                 get   = function()
-                    local c = TSBT.db.profile.media.schoolColors.arcane
+                    local c = KSBT.db.profile.media.schoolColors.arcane
                     return c.r, c.g, c.b
                 end,
                 set   = function(_, r, g, b)
-                    local c = TSBT.db.profile.media.schoolColors.arcane
+                    local c = KSBT.db.profile.media.schoolColors.arcane
                     c.r, c.g, c.b = r, g, b
                 end,
             },
@@ -2190,8 +2190,8 @@ function TSBT.BuildTab_Media()
                 confirm = true,
                 confirmText = "Reset all damage school colors to defaults?",
                 func    = function()
-                    local defaults = TSBT.DEFAULTS.profile.media.schoolColors
-                    local current  = TSBT.db.profile.media.schoolColors
+                    local defaults = KSBT.DEFAULTS.profile.media.schoolColors
+                    local current  = KSBT.db.profile.media.schoolColors
                     for school, color in pairs(defaults) do
                         current[school] = { r = color.r, g = color.g, b = color.b }
                     end
@@ -2208,12 +2208,12 @@ end
 -- Uses C_Timer for staggered firing. Falls back to chat output if
 -- the Display system isn't built yet.
 ------------------------------------------------------------------------
-function TSBT.TestScrollArea(areaName)
+function KSBT.TestScrollArea(areaName)
     if not areaName then return end
 
-    local area = TSBT.db and TSBT.db.profile.scrollAreas[areaName]
+    local area = KSBT.db and KSBT.db.profile.scrollAreas[areaName]
     if not area then
-        TSBT.Addon:Print("Scroll area '" .. areaName .. "' not found.")
+        KSBT.Addon:Print("Scroll area '" .. areaName .. "' not found.")
         return
     end
 
@@ -2225,15 +2225,15 @@ function TSBT.TestScrollArea(areaName)
         -- Use C_Timer to stagger the test outputs
         C_Timer.After((i - 1) * STAGGER_SECONDS, function()
             -- If the Display system has a rendering function, use it
-            if TSBT.DisplayText then
-                TSBT.DisplayText(areaName, "TEST 12345", {
-                    r = TSBT.COLORS.ACCENT.r,
-                    g = TSBT.COLORS.ACCENT.g,
-                    b = TSBT.COLORS.ACCENT.b,
+            if KSBT.DisplayText then
+                KSBT.DisplayText(areaName, "TEST 12345", {
+                    r = KSBT.COLORS.ACCENT.r,
+                    g = KSBT.COLORS.ACCENT.g,
+                    b = KSBT.COLORS.ACCENT.b,
                 })
             else
                 -- Fallback: print to chat until Display system is implemented
-                TSBT.Addon:Print("|cFF4A9EFFTEST 12345|r ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
+                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
             end
         end)
     end

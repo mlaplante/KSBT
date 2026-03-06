@@ -2,12 +2,12 @@
 -- Kroth's Scrolling Battle Text - Combat Decision Layer (Skeleton)
 -- Responsibility: accept normalized combat events and decide emission.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-TSBT.Core.Combat = TSBT.Core.Combat or {}
-local Combat = TSBT.Core.Combat
-local Addon  = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+KSBT.Core.Combat = KSBT.Core.Combat or {}
+local Combat = KSBT.Core.Combat
+local Addon  = KSBT.Addon
 
 function Combat:Enable()
     if Addon and Addon.DebugPrint then

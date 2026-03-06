@@ -11,12 +11,12 @@
 --   - No attribution, aggregation, throttling, or spam policy.
 --   - No secret-value identity work.
 ------------------------------------------------------------------------
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
-TSBT.Core = TSBT.Core or {}
-TSBT.Core.IncomingProbe = TSBT.Core.IncomingProbe or {}
-local Probe = TSBT.Core.IncomingProbe
-local Addon = TSBT.Addon
+KSBT.Core = KSBT.Core or {}
+KSBT.Core.IncomingProbe = KSBT.Core.IncomingProbe or {}
+local Probe = KSBT.Core.IncomingProbe
+local Addon = KSBT.Addon
 
 -- Internal state
 Probe._initialized = Probe._initialized or false
@@ -76,7 +76,7 @@ local function SnapshotBuffer()
 end
 
 local function SchoolColorFromMask(mask)
-    return TSBT.SchoolColorFromMask and TSBT.SchoolColorFromMask(mask)
+    return KSBT.SchoolColorFromMask and KSBT.SchoolColorFromMask(mask)
 end
 
 function Probe:Init()
@@ -281,11 +281,11 @@ end
 
 function Probe:ProcessIncomingEvent(evt, isReplay)
     -- Respect user toggles + thresholds.
-    if not TSBT.db or not TSBT.db.profile or not TSBT.db.profile.incoming then
+    if not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.incoming then
         return
     end
 
-    local prof = TSBT.db.profile.incoming
+    local prof = KSBT.db.profile.incoming
 
     local kind = evt.kind
     if kind ~= "damage" and kind ~= "heal" then return end
@@ -351,9 +351,9 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
         school = evt.schoolMask
     }
 
-    if TSBT.DisplayText then
-        TSBT.DisplayText(area, text, color, meta)
-    elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-        TSBT.Core.Display:Emit(area, text, color, meta)
+    if KSBT.DisplayText then
+        KSBT.DisplayText(area, text, color, meta)
+    elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
+        KSBT.Core.Display:Emit(area, text, color, meta)
     end
 end

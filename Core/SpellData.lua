@@ -4,15 +4,15 @@
 -- Spell IDs sourced from WoW Midnight 12.0.x (Restoration Druid).
 ------------------------------------------------------------------------
 
-local ADDON_NAME, TSBT = ...
+local ADDON_NAME, KSBT = ...
 
 ------------------------------------------------------------------------
 -- Restoration Druid - All Healing Spells
 -- Format: [spellId] = { name, cooldown (seconds, 0 = no CD), isHoT }
 ------------------------------------------------------------------------
-TSBT.SPELLS = TSBT.SPELLS or {}
+KSBT.SPELLS = KSBT.SPELLS or {}
 
-TSBT.SPELLS.RESTO_DRUID = {
+KSBT.SPELLS.RESTO_DRUID = {
 
     ----------------------------------------------------------------
     -- Core Heals
@@ -52,9 +52,9 @@ TSBT.SPELLS.RESTO_DRUID = {
 -- Helper: returns a cooldowns.tracked-compatible table for all
 -- Resto Druid spells that have a meaningful cooldown (cooldown > 0).
 ------------------------------------------------------------------------
-function TSBT.BuildRestoDruidCooldownDefaults()
+function KSBT.BuildRestoDruidCooldownDefaults()
     local t = {}
-    for spellId, data in pairs(TSBT.SPELLS.RESTO_DRUID) do
+    for spellId, data in pairs(KSBT.SPELLS.RESTO_DRUID) do
         if data.cooldown > 0 then
             t[spellId] = true
         end
