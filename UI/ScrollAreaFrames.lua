@@ -184,6 +184,14 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
                 newXOffset, newYOffset))
         end
 
+        -- Release stale test parent frame for this area (position key changed, name is stable)
+        if TSBT._testParentFrames and TSBT._testParentFrames[self.areaName] then
+            local old = TSBT._testParentFrames[self.areaName]
+            old:Hide()
+            old:SetParent(nil)
+            TSBT._testParentFrames[self.areaName] = nil
+        end
+
         -- Notify AceConfig to refresh sliders if the config dialog is open
         LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
     end)
@@ -365,7 +373,7 @@ function TSBT.TestScrollArea(areaName)
     for i, text in ipairs(mockEvents) do
         -- Use C_Timer.After for staggered firing (0.0, 0.3, 0.6 seconds)
         C_Timer.After((i - 1) * 0.3, function()
-            TSBT.FireTestText(text, area, fontFace, fontSize, outlineFlag,
+            TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
                               fontAlpha, anchorH, dirMult, duration)
         end)
     end
@@ -418,7 +426,7 @@ local function FireAllAreasOnce()
                 local mockEvent = mockEvents[((i - 1) % #mockEvents) + 1]
                 
                 C_Timer.After((i - 1) * 0.3, function()
-                    TSBT.FireTestText(mockEvent.text, area, fontFace, fontSize,
+                    TSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
                                       outlineFlag, fontAlpha, anchorH, dirMult, duration)
                 end)
             end
@@ -505,6 +513,7 @@ end
 -- This is a standalone test display, independent of the future
 -- Display.lua pooling system.
 --
+-- @param areaName     (string) Scroll area name (used as stable parent key)
 -- @param text         (string) Text to display
 -- @param area         (table)  Scroll area config
 -- @param fontFace     (string) Font file path
@@ -517,11 +526,11 @@ end
 ------------------------------------------------------------------------
 -- @param color        (table|nil) Optional {r,g,b,a} text color. If nil,
 --                      uses TSBT.COLORS.ACCENT.
-function TSBT.FireTestText(text, area, fontFace, fontSize, outlineFlag,
+function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
                            fontAlpha, anchorH, dirMult, duration, color)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
-    local parentKey = string.format("test_%.0f_%.0f", area.xOffset, area.yOffset)
+    local parentKey = areaName or string.format("test_%.0f_%.0f", area.xOffset, area.yOffset)
     
     if not TSBT._testParentFrames then
         TSBT._testParentFrames = {}
