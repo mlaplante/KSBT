@@ -51,6 +51,32 @@ local function ReleaseAnimFrame(f)
     table.insert(_animFramePool, f)
 end
 
+-- Pool for FontStrings, keyed by parentKey (area name)
+-- FontStrings cannot be destroyed in WoW; pooling avoids accumulation on parent frames.
+local _fsPool = {}
+
+local function AcquireFontString(parent, parentKey)
+    local pool = _fsPool[parentKey]
+    if pool and #pool > 0 then
+        local fs = table.remove(pool)
+        fs:Show()
+        return fs
+    end
+    return parent:CreateFontString(nil, "OVERLAY")
+end
+
+local function ReleaseFontString(fs, parentKey)
+    fs:Hide()
+    fs:ClearAllPoints()
+    fs:SetText("")
+    local pool = _fsPool[parentKey]
+    if not pool then
+        pool = {}
+        _fsPool[parentKey] = pool
+    end
+    table.insert(pool, fs)
+end
+
 ------------------------------------------------------------------------
 -- Font Resolution
 --
@@ -549,8 +575,8 @@ function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
     parent:SetPoint("CENTER", UIParent, "CENTER", area.xOffset, area.yOffset)
     parent:Show()
 
-    -- Create the FontString
-    local fs = parent:CreateFontString(nil, "OVERLAY")
+    -- Acquire a pooled FontString (or create one if pool is empty)
+    local fs = AcquireFontString(parent, parentKey)
     fs:SetFont(fontFace, fontSize, outlineFlag)
     fs:SetText(text)
     fs:SetAlpha(fontAlpha)
@@ -593,8 +619,7 @@ function TSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
         local progress = elapsed / duration
         if progress >= 1.0 then
             -- Animation complete: clean up
-            fs:Hide()
-            fs:SetParent(nil)
+            ReleaseFontString(fs, parentKey)
             ReleaseAnimFrame(self)
             return
         end
