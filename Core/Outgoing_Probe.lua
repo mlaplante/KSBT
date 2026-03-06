@@ -233,7 +233,6 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             text = text .. " -> " .. evt.targetName
         end
 
-        local color = {r = 1.00, g = 0.25, b = 0.25}
         local meta = {
             probe = true,
             replay = isReplay == true,
@@ -242,6 +241,13 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
         }
+        local color
+        if meta.isCrit then
+            color = {r = 1.00, g = 0.65, b = 0.00}  -- orange for damage crits
+            text = text .. "!"
+        else
+            color = {r = 1.00, g = 0.25, b = 0.25}  -- red for normal damage
+        end
 
         if TSBT.DisplayText then
             TSBT.DisplayText(area, text, color, meta)
@@ -277,7 +283,6 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             text = text .. " (OH " .. tostring(math.floor(over + 0.5)) .. ")"
         end
 
-        local color = {r = 0.20, g = 1.00, b = 0.20}
         local meta = {
             probe = true,
             replay = isReplay == true,
@@ -285,6 +290,13 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
         }
+        local color
+        if meta.isCrit then
+            color = {r = 0.40, g = 1.00, b = 0.80}  -- cyan for healing crits
+            text = text .. "!"
+        else
+            color = {r = 0.20, g = 1.00, b = 0.20}  -- green for normal healing
+        end
 
         if TSBT.DisplayText then
             TSBT.DisplayText(area, text, color, meta)
