@@ -8,7 +8,7 @@ local ADDON_NAME, KSBT = ...
 ------------------------------------------------------------------------
 -- Version & Identity
 ------------------------------------------------------------------------
-KSBT.VERSION = "1.1.0"
+KSBT.VERSION = "1.1.1"
 KSBT.ADDON_TITLE = "Kroth's Scrolling Battle Text"
 KSBT.SLASH_PRIMARY = "/ksbt"
 KSBT.SLASH_SECONDARY = "/krothsbt"
