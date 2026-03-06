@@ -35,6 +35,22 @@ local isUnlocked = false
 local isContinuousTesting = false
 local continuousTestTimer = nil
 
+-- Pool for animation driver frames (prevents per-event CreateFrame accumulation)
+local _animFramePool = {}
+
+local function AcquireAnimFrame()
+    local f = table.remove(_animFramePool)
+    if not f then
+        f = CreateFrame("Frame")
+    end
+    return f
+end
+
+local function ReleaseAnimFrame(f)
+    f:SetScript("OnUpdate", nil)
+    table.insert(_animFramePool, f)
+end
+
 ------------------------------------------------------------------------
 -- Font Resolution
 --
@@ -561,7 +577,7 @@ function TSBT.FireTestText(text, area, fontFace, fontSize, outlineFlag,
     local elapsed = 0
 
     -- Use OnUpdate for animation
-    local animFrame = CreateFrame("Frame")
+    local animFrame = AcquireAnimFrame()
     animFrame:SetScript("OnUpdate", function(self, dt)
         elapsed = elapsed + dt
 
@@ -570,7 +586,7 @@ function TSBT.FireTestText(text, area, fontFace, fontSize, outlineFlag,
             -- Animation complete: clean up
             fs:Hide()
             fs:SetParent(nil)
-            self:SetScript("OnUpdate", nil)
+            ReleaseAnimFrame(self)
             return
         end
 
