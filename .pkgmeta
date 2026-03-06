@@ -1,0 +1,8 @@
+package-as: KBST
+
+ignore:
+  - .github
+  - test.txt
+  - test.txt.bak
+  - _FolderStructure.txt
+  - README.md.tmp
