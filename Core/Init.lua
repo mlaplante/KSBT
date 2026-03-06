@@ -97,26 +97,11 @@ function Addon:OnEnable()
     else
         -- Respect saved disabled state
         if TSBT.Parser then
-            if TSBT.Parser.Incoming and TSBT.Parser.Incoming.Disable then
-                TSBT.Parser.Incoming:Disable()
-            end
-            if TSBT.Parser.Outgoing and TSBT.Parser.Outgoing.Disable then
-                TSBT.Parser.Outgoing:Disable()
-            end
-            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Disable then
-                TSBT.Parser.Cooldowns:Disable()
-            end
-            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Disable then
-                TSBT.Parser.CombatLog:Disable()
-            end
-            if TSBT.Parser.Incoming and TSBT.Parser.Incoming.Disable then
-                TSBT.Parser.Incoming:Disable()
-            end
-            if TSBT.Parser.Outgoing and TSBT.Parser.Outgoing.Disable then
-                TSBT.Parser.Outgoing:Disable()
-            end
+            if TSBT.Parser.Incoming  and TSBT.Parser.Incoming.Disable  then TSBT.Parser.Incoming:Disable()  end
+            if TSBT.Parser.Outgoing  and TSBT.Parser.Outgoing.Disable  then TSBT.Parser.Outgoing:Disable()  end
+            if TSBT.Parser.Cooldowns and TSBT.Parser.Cooldowns.Disable then TSBT.Parser.Cooldowns:Disable() end
+            if TSBT.Parser.CombatLog and TSBT.Parser.CombatLog.Disable then TSBT.Parser.CombatLog:Disable() end
         end
-
         if TSBT.Core and TSBT.Core.Disable then TSBT.Core:Disable() end
     end
 end
