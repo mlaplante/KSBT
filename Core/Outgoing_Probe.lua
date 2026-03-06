@@ -29,6 +29,80 @@ Probe._buffer = Probe._buffer or {}
 Probe._bufHead = Probe._bufHead or 0
 Probe._bufCount = Probe._bufCount or 0
 
+-- Spam control: merge pending events
+-- Key: kind .. "_" .. spellId .. "_" .. area  →  entry table
+local _mergeState = {}
+
+local function MergeKey(kind, spellId, area)
+    return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
+end
+
+local function FlushMerge(key)
+    local entry = _mergeState[key]
+    if not entry then return end
+    _mergeState[key] = nil
+
+    local text = entry.text
+    local db = TSBT.db and TSBT.db.profile
+    local showCount = db and db.spamControl and db.spamControl.merging
+                      and db.spamControl.merging.showCount
+    if entry.count > 1 and showCount then
+        text = text .. " x" .. entry.count
+    end
+
+    if TSBT.DisplayText then
+        TSBT.DisplayText(entry.area, text, entry.color, entry.meta)
+    elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
+        TSBT.Core.Display:Emit(entry.area, text, entry.color, entry.meta)
+    end
+end
+
+-- Emit an event, merging with previous if spam control is active.
+-- baseText: the raw number string used as merge identity key (no "!" or spell name)
+-- text: the fully composed display string
+local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isReplay)
+    local db = TSBT.db and TSBT.db.profile
+    local mergeEnabled = db and db.spamControl and db.spamControl.merging
+                         and db.spamControl.merging.enabled
+    local mergeWindow  = (db and db.spamControl and db.spamControl.merging
+                         and db.spamControl.merging.window) or 1.5
+
+    if mergeEnabled and not isReplay then
+        local mkey = MergeKey(kind, spellId, area)
+        local existing = _mergeState[mkey]
+
+        if existing and existing.baseText == baseText then
+            -- Same spell, same amount — merge
+            existing.count = existing.count + 1
+            if existing.timer then existing.timer:Cancel() end
+            existing.timer = C_Timer.NewTimer(mergeWindow, function()
+                FlushMerge(mkey)
+            end)
+        else
+            -- Different or first occurrence — flush old, start new
+            if existing then FlushMerge(mkey) end
+            _mergeState[mkey] = {
+                baseText = baseText,
+                text     = text,
+                area     = area,
+                color    = color,
+                meta     = meta,
+                count    = 1,
+                timer    = C_Timer.NewTimer(mergeWindow, function()
+                    FlushMerge(mkey)
+                end),
+            }
+        end
+    else
+        -- No merging — emit directly
+        if TSBT.DisplayText then
+            TSBT.DisplayText(area, text, color, meta)
+        elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
+            TSBT.Core.Display:Emit(area, text, color, meta)
+        end
+    end
+end
+
 local function Now() return (GetTime and GetTime()) or 0 end
 
 local function Debug(level, ...)
@@ -258,11 +332,8 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             end
         end
 
-        if TSBT.DisplayText then
-            TSBT.DisplayText(area, text, color, meta)
-        elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-            TSBT.Core.Display:Emit(area, text, color, meta)
-        end
+        local baseText = tostring(math.floor(amt + 0.5))
+        EmitOrMerge(kind, evt.spellId, area, baseText, text, color, meta, isReplay)
 
     else
         local conf = prof.healing
@@ -307,10 +378,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             color = {r = 0.20, g = 1.00, b = 0.20}  -- green for normal healing
         end
 
-        if TSBT.DisplayText then
-            TSBT.DisplayText(area, text, color, meta)
-        elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then
-            TSBT.Core.Display:Emit(area, text, color, meta)
-        end
+        local baseText = tostring(math.floor(displayAmt + 0.5))
+        EmitOrMerge(kind, evt.spellId, area, baseText, text, color, meta, isReplay)
     end
 end
