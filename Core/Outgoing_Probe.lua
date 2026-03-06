@@ -249,6 +249,15 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             color = {r = 1.00, g = 0.25, b = 0.25}  -- red for normal damage
         end
 
+        -- School color override for non-crit damage (when school colors are enabled)
+        if not meta.isCrit then
+            local prof2 = TSBT.db and TSBT.db.profile
+            if prof2 and prof2.incoming and prof2.incoming.useSchoolColors then
+                local sc = TSBT.SchoolColorFromMask and TSBT.SchoolColorFromMask(evt.schoolMask)
+                if sc then color = sc end
+            end
+        end
+
         if TSBT.DisplayText then
             TSBT.DisplayText(area, text, color, meta)
         elseif TSBT.Core and TSBT.Core.Display and TSBT.Core.Display.Emit then

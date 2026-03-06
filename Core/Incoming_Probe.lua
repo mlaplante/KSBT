@@ -76,39 +76,7 @@ local function SnapshotBuffer()
 end
 
 local function SchoolColorFromMask(mask)
-    -- Minimal school coloring for UX testing. Multi-school masks fall back.
-    if type(mask) ~= "number" then return nil end
-
-    local band = (bit and bit.band) or (bit32 and bit32.band)
-    if type(band) ~= "function" then
-        -- If bitlib is unavailable for some reason, do not attempt masking.
-        return nil
-    end
-
-    local single = mask
-    -- If multiple bits are set, skip coloring (engine can refine later).
-    if single and single > 0 and band(single, single - 1) ~= 0 then
-        return nil
-    end
-
-    -- Treat PHYSICAL as "no school color" for UI/UX, so we still
-    -- get damage/heal distinction (red/green) instead of everything turning white.
-    if single == TSBT.SCHOOL_PHYSICAL then
-        return nil
-    end
-    if single == TSBT.SCHOOL_HOLY then return {r = 1.00, g = 0.90, b = 0.50} end
-    if single == TSBT.SCHOOL_FIRE then return {r = 1.00, g = 0.35, b = 0.20} end
-    if single == TSBT.SCHOOL_NATURE then
-        return {r = 0.30, g = 1.00, b = 0.30}
-    end
-    if single == TSBT.SCHOOL_FROST then return {r = 0.50, g = 0.85, b = 1.00} end
-    if single == TSBT.SCHOOL_SHADOW then
-        return {r = 0.65, g = 0.45, b = 1.00}
-    end
-    if single == TSBT.SCHOOL_ARCANE then
-        return {r = 0.60, g = 0.60, b = 1.00}
-    end
-    return nil
+    return TSBT.SchoolColorFromMask and TSBT.SchoolColorFromMask(mask)
 end
 
 function Probe:Init()

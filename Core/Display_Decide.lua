@@ -66,6 +66,31 @@ function Display:Emit(areaName, text, color, meta)
         anchorH, dirMult, duration, color)
 end
 
+-- Shared school color resolver. Returns {r,g,b} or nil.
+-- Single-bit schoolMask only; multi-school masks return nil.
+-- Physical (0x1) returns nil — use kind-based color (red/green) for physical.
+-- Reads from profile.media.schoolColors when configured.
+function TSBT.SchoolColorFromMask(mask)
+    if type(mask) ~= "number" or mask <= 0 then return nil end
+    local band = bit and bit.band
+    if type(band) ~= "function" then return nil end
+    -- Multi-school: skip
+    if band(mask, mask - 1) ~= 0 then return nil end
+    -- Physical: no school color
+    if mask == TSBT.SCHOOL_PHYSICAL then return nil end
+
+    local profile = TSBT.db and TSBT.db.profile
+    local sc = profile and profile.media and profile.media.schoolColors
+
+    if mask == TSBT.SCHOOL_HOLY   then return sc and sc.holy   or {r=1.00,g=0.90,b=0.50} end
+    if mask == TSBT.SCHOOL_FIRE   then return sc and sc.fire   or {r=1.00,g=0.30,b=0.00} end
+    if mask == TSBT.SCHOOL_NATURE then return sc and sc.nature or {r=0.30,g=1.00,b=0.30} end
+    if mask == TSBT.SCHOOL_FROST  then return sc and sc.frost  or {r=0.40,g=0.80,b=1.00} end
+    if mask == TSBT.SCHOOL_SHADOW then return sc and sc.shadow or {r=0.60,g=0.20,b=1.00} end
+    if mask == TSBT.SCHOOL_ARCANE then return sc and sc.arcane or {r=1.00,g=0.50,b=1.00} end
+    return nil
+end
+
 -- Backward-compat contract
 if TSBT.DisplayText == nil then
     function TSBT.DisplayText(areaName, text, color, meta)
