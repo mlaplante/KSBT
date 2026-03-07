@@ -159,7 +159,6 @@ KSBT.DEFAULTS = {
             sounds = {
                 lowHealth          = "None",
                 lowHealthThreshold = 20,    -- percent (0-100)
-                cooldownReady      = "None",
             },
             schoolColors = {
                 physical = { r = 1.00, g = 1.00, b = 0.00 },

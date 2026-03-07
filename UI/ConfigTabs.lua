@@ -2049,28 +2049,6 @@ function KSBT.BuildTab_Media()
                     KSBT.PlayLSMSound(KSBT.db.profile.media.sounds.lowHealth)
                 end,
             },
-            -- Cooldown Ready sound: standard select
-            cooldownReadySound = {
-                type   = "select",
-                name   = "Cooldown Ready",
-                desc   = "Sound to play when a tracked cooldown finishes.",
-                order  = 4,
-                values = function() return KSBT.BuildSoundDropdown() end,
-                -- No dialogControl — uses standard dropdown
-                get    = function() return KSBT.db.profile.media.sounds.cooldownReady end,
-                set    = function(_, val) KSBT.db.profile.media.sounds.cooldownReady = val end,
-            },
-            testCooldownReady = {
-                type  = "execute",
-                name  = "Play Sound",
-                desc  = "Preview the selected cooldown ready sound.",
-                order = 5,
-                width = "half",
-                func  = function()
-                    KSBT.PlayLSMSound(KSBT.db.profile.media.sounds.cooldownReady)
-                end,
-            },
-
             ----------------------------------------------------------------
             -- Damage School Colors
             ----------------------------------------------------------------
