@@ -94,6 +94,9 @@ function Addon:OnEnable()
                 KSBT.Parser.Cooldowns:Enable()
             end
         end
+        if KSBT.Core and KSBT.Core.LowHealth and KSBT.Core.LowHealth.Enable then
+            KSBT.Core.LowHealth:Enable()
+        end
     else
         -- Respect saved disabled state
         if KSBT.Parser then
@@ -103,6 +106,9 @@ function Addon:OnEnable()
             if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then KSBT.Parser.CombatLog:Disable() end
         end
         if KSBT.Core and KSBT.Core.Disable then KSBT.Core:Disable() end
+        if KSBT.Core and KSBT.Core.LowHealth and KSBT.Core.LowHealth.Disable then
+            KSBT.Core.LowHealth:Disable()
+        end
     end
 end
 
@@ -126,6 +132,9 @@ function Addon:OnDisable()
     end
 
     if KSBT.Core and KSBT.Core.Disable then KSBT.Core:Disable() end
+    if KSBT.Core and KSBT.Core.LowHealth and KSBT.Core.LowHealth.Disable then
+        KSBT.Core.LowHealth:Disable()
+    end
 end
 
 ------------------------------------------------------------------------
