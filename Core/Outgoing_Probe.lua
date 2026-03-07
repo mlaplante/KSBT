@@ -296,6 +296,17 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local minT = tonumber(conf.minThreshold) or 0
         if amt < minT then return end
 
+        -- Global throttling (spamControl.throttling)
+        local spamConf = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
+        local throttle = spamConf and spamConf.throttling
+        if throttle then
+            local globalMin = tonumber(throttle.minDamage) or 0
+            if globalMin > 0 and amt < globalMin then return end
+
+            local hideAutoBelow = tonumber(throttle.hideAutoBelow) or 0
+            if evt.isAuto and hideAutoBelow > 0 and amt < hideAutoBelow then return end
+        end
+
         local area = conf.scrollArea or "Outgoing"
         local text = tostring(math.floor(amt + 0.5))
 
@@ -351,6 +362,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
 
         local minT = tonumber(conf.minThreshold) or 0
         if displayAmt < minT then return end
+
+        -- Global throttling (spamControl.throttling)
+        local spamConf2 = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
+        local throttle2 = spamConf2 and spamConf2.throttling
+        if throttle2 then
+            local globalMin = tonumber(throttle2.minHealing) or 0
+            if globalMin > 0 and displayAmt < globalMin then return end
+        end
 
         local area = conf.scrollArea or "Outgoing"
         local text = tostring(math.floor(displayAmt + 0.5))
