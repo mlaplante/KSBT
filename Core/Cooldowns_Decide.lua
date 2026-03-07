@@ -67,4 +67,14 @@ function Cooldowns:OnCooldownReady(event)
     elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
         KSBT.Core.Display:Emit(area, text, color, { kind = "cooldown", spellId = spellId })
     end
+
+    -- Play cooldown-ready sound if configured
+    local soundName = conf.sound
+    if soundName and soundName ~= "None" and soundName ~= "" then
+        local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+        local soundPath = LSM and LSM:Fetch("sound", soundName)
+        if soundPath and PlaySoundFile then
+            PlaySoundFile(soundPath, "SFX")
+        end
+    end
 end
