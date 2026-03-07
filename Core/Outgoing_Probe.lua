@@ -33,6 +33,18 @@ Probe._bufCount = Probe._bufCount or 0
 -- Key: kind .. "_" .. spellId .. "_" .. area  →  entry table
 local _mergeState = {}
 
+-- Training dummy detection (for suppressDummyDamage)
+local _DUMMY_TYPE_NPC         = COMBATLOG_OBJECT_TYPE_NPC        or 0x00000800
+local _DUMMY_REACTION_NEUTRAL = COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000010
+
+local function IsDummyTarget(destFlags)
+    if not destFlags then return false end
+    local b = bit and bit.band
+    if type(b) ~= "function" then return false end
+    return b(destFlags, _DUMMY_TYPE_NPC) ~= 0
+       and b(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+end
+
 local function MergeKey(kind, spellId, area)
     return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
 end
@@ -305,6 +317,12 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
 
             local hideAutoBelow = tonumber(throttle.hideAutoBelow) or 0
             if evt.isAuto and hideAutoBelow > 0 and amt < hideAutoBelow then return end
+        end
+
+        -- Suppress training dummy damage
+        local spamConf3 = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
+        if spamConf3 and spamConf3.suppressDummyDamage then
+            if IsDummyTarget(evt.destFlags) then return end
         end
 
         local area = conf.scrollArea or "Outgoing"
