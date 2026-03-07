@@ -8,7 +8,7 @@
 -- Scope rules for this probe:
 --   - Outgoing = player-only. Pet/guardian damage must NOT appear here.
 --   - This is NOT the engine. No attribution beyond player-only flag filtering.
---   - No spam control, merging, throttling, or learning.
+--   - Throttling and dummy suppression are applied here. No merging or learning.
 ------------------------------------------------------------------------
 local ADDON_NAME, KSBT = ...
 
@@ -33,16 +33,16 @@ Probe._bufCount = Probe._bufCount or 0
 -- Key: kind .. "_" .. spellId .. "_" .. area  →  entry table
 local _mergeState = {}
 
+local band = bit.band
+
 -- Training dummy detection (for suppressDummyDamage)
 local _DUMMY_TYPE_NPC         = COMBATLOG_OBJECT_TYPE_NPC        or 0x00000800
-local _DUMMY_REACTION_NEUTRAL = COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000010
+local _DUMMY_REACTION_NEUTRAL = COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000020
 
 local function IsDummyTarget(destFlags)
     if not destFlags then return false end
-    local b = bit and bit.band
-    if type(b) ~= "function" then return false end
-    return b(destFlags, _DUMMY_TYPE_NPC) ~= 0
-       and b(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+    return band(destFlags, _DUMMY_TYPE_NPC) ~= 0
+       and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
 end
 
 local function MergeKey(kind, spellId, area)
@@ -308,7 +308,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local minT = tonumber(conf.minThreshold) or 0
         if amt < minT then return end
 
-        -- Global throttling (spamControl.throttling)
+        -- Spam control checks (throttling + dummy suppression)
         local spamConf = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
         local throttle = spamConf and spamConf.throttling
         if throttle then
@@ -320,8 +320,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         end
 
         -- Suppress training dummy damage
-        local spamConf3 = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
-        if spamConf3 and spamConf3.suppressDummyDamage then
+        if spamConf and spamConf.suppressDummyDamage then
             if IsDummyTarget(evt.destFlags) then return end
         end
 
