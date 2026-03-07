@@ -45,6 +45,7 @@ local function Normalize(info)
         timestamp  = ts,
         sourceName = info[5],
         targetName = info[9],
+        destFlags  = info[10],   -- destination unit type flags (for dummy detection)
     }
 
     if subevent == "SWING_DAMAGE" then
