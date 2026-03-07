@@ -12,7 +12,6 @@ local Addon     = KSBT.Addon
 
 LowHealth._enabled  = LowHealth._enabled  or false
 LowHealth._fired    = LowHealth._fired    or false   -- true once sound played this combat
-LowHealth._frame    = LowHealth._frame    or nil
 
 local function Debug(level, ...)
     if Addon and Addon.DebugPrint then Addon:DebugPrint(level, ...) end
@@ -43,7 +42,7 @@ local function CheckHealth()
 
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     local soundPath = LSM and LSM:Fetch("sound", soundName)
-    if soundPath and PlaySoundFile then
+    if soundPath then
         PlaySoundFile(soundPath, "SFX")
     end
 end
@@ -63,8 +62,8 @@ function LowHealth:Enable()
         self._frame = CreateFrame("Frame")
     end
 
-    self._frame:SetScript("OnEvent", function(_, event)
-        if event == "UNIT_HEALTH" then
+    self._frame:SetScript("OnEvent", function(_, event, unit)
+        if event == "UNIT_HEALTH" and unit == "player" then
             CheckHealth()
         elseif event == "PLAYER_REGEN_ENABLED" then
             OnCombatEnd()
