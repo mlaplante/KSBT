@@ -220,6 +220,10 @@ function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
 
+    -- Always register PLAYER_REGEN_DISABLED on the frame for the event diag
+    f:RegisterEvent("PLAYER_REGEN_DISABLED")
+    print("|cff00ff00KSBT-Outgoing|r Enable() - registered PLAYER_REGEN_DISABLED on frame")
+
     if EventRegistry then
         -- WoW Midnight: CLEU is delivered via EventRegistry, not frame:RegisterEvent
         EventRegistry:RegisterFrameEventAndCallback(
