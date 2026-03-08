@@ -138,14 +138,26 @@ local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
+local _relevantSubevents = {
+    SWING_DAMAGE=true, SPELL_DAMAGE=true, SPELL_PERIODIC_DAMAGE=true,
+    RANGE_DAMAGE=true, SPELL_HEAL=true, SPELL_PERIODIC_HEAL=true,
+}
+
 f:SetScript("OnEvent", function()
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
     if #info == 0 then return end
+    -- Only log relevant subevents to avoid chat spam
+    if _relevantSubevents[info[2]] then
+        DebugPrint("CLEU relevant: subevent=" .. tostring(info[2])
+            .. " src=" .. tostring(info[5])
+            .. " srcFlags=" .. tostring(info[6]))
+    end
 
     local ok, evtOrErr = pcall(Normalize, info)
     if not ok then
         Debug(1, "Parser.Outgoing normalize error:", tostring(evtOrErr))
+        print("|cffff0000KSBT-Outgoing|r Normalize ERROR: " .. tostring(evtOrErr))
         return
     end
 
@@ -157,6 +169,7 @@ function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
     f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    print("|cff00ff00KSBT-Outgoing|r Enable() called - CLEU registered")
     Debug(1, "Parser.Outgoing enabled.")
 end
 
