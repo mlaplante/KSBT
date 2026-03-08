@@ -141,36 +141,46 @@ local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
--- RegisterAllEvents diagnostic: fires once on PLAYER_REGEN_DISABLED,
--- captures all unique event names for 3 seconds, then prints them.
+-- Probe UNIT_COMBAT and DAMAGE_METER_* to understand WoW Midnight per-hit data.
 local _diagFrame = nil
-local _diagSeen = {}
 local _diagDone = false
+local _unitCombatCount = 0
 
 local function StartEventDiag()
     if _diagDone then return end
     _diagDone = true
-    print("|cffff9900KSBT-EventDiag|r Starting RegisterAllEvents for 3 seconds...")
+    print("|cffff9900KSBT-EventDiag|r Probing UNIT_COMBAT + DAMAGE_METER events...")
 
     _diagFrame = CreateFrame("Frame")
-    _diagFrame:RegisterAllEvents()
-    _diagFrame:SetScript("OnEvent", function(self, event, ...)
-        if not _diagSeen[event] then
-            _diagSeen[event] = true
-        end
-    end)
+    _diagFrame:RegisterEvent("UNIT_COMBAT")
+    _diagFrame:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED")
+    _diagFrame:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED")
 
-    C_Timer.After(3, function()
-        if _diagFrame then
-            _diagFrame:UnregisterAllEvents()
-            _diagFrame:SetScript("OnEvent", nil)
-        end
-        local list = {}
-        for k in pairs(_diagSeen) do list[#list+1] = k end
-        table.sort(list)
-        print("|cffff9900KSBT-EventDiag|r Events seen (" .. #list .. " unique):")
-        for _, name in ipairs(list) do
-            print("|cffff9900KSBT-EventDiag|r  " .. name)
+    _diagFrame:SetScript("OnEvent", function(self, event, ...)
+        if event == "UNIT_COMBAT" then
+            _unitCombatCount = _unitCombatCount + 1
+            if _unitCombatCount <= 20 then
+                local unit, action, flagText, amount, schoolMask = ...
+                print("|cffff9900KSBT-UNIT_COMBAT|r #" .. _unitCombatCount
+                    .. " unit=" .. tostring(unit)
+                    .. " action=" .. tostring(action)
+                    .. " flags=" .. tostring(flagText)
+                    .. " amt=" .. tostring(amount)
+                    .. " school=" .. tostring(schoolMask))
+            end
+
+        elseif event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
+            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
+            print("|cffff9900KSBT-DmgMeter|r " .. event .. " fired")
+            -- Probe the C_DamageMeter API
+            if C_DamageMeter then
+                local keys = {}
+                for k in pairs(C_DamageMeter) do keys[#keys+1] = k end
+                table.sort(keys)
+                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter keys: " .. table.concat(keys, ", "))
+            else
+                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter is nil")
+            end
         end
     end)
 end
