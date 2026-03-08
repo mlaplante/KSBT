@@ -182,18 +182,45 @@ end)
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
-    f:Show()
-    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    f:RegisterEvent("COMBAT_LOG_EVENT")
-    f:RegisterEvent("PLAYER_REGEN_DISABLED")  -- diagnostic: enters combat
-    print("|cff00ff00KSBT-Outgoing|r Enable() - registered CLEU/COMBAT_LOG_EVENT/PLAYER_REGEN_DISABLED, shown=" .. tostring(f:IsShown()))
+
+    if EventRegistry then
+        -- WoW Midnight: CLEU is delivered via EventRegistry, not frame:RegisterEvent
+        EventRegistry:RegisterFrameEventAndCallback(
+            "COMBAT_LOG_EVENT_UNFILTERED", Outgoing._OnCLEU, Outgoing)
+        print("|cff00ff00KSBT-Outgoing|r Enable() - registered via EventRegistry")
+    else
+        -- Fallback for older clients
+        f:Show()
+        f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        print("|cff00ff00KSBT-Outgoing|r Enable() - registered via frame:RegisterEvent")
+    end
     Debug(1, "Parser.Outgoing enabled.")
+end
+
+function Outgoing._OnCLEU()
+    if not Outgoing._enabled then return end
+    local info = { CombatLogGetCurrentEventInfo() }
+    if #info == 0 then return end
+
+    DebugPrint("EventRegistry CLEU: subevent=" .. tostring(info[2]))
+
+    local ok, evtOrErr = pcall(Normalize, info)
+    if not ok then
+        print("|cffff0000KSBT-Outgoing|r Normalize ERROR: " .. tostring(evtOrErr))
+        return
+    end
+    if evtOrErr then Emit(evtOrErr) end
 end
 
 function Outgoing:Disable()
     if not self._enabled then return end
     self._enabled = false
-    f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    if EventRegistry then
+        EventRegistry:UnregisterFrameEventAndCallback(
+            "COMBAT_LOG_EVENT_UNFILTERED", Outgoing._OnCLEU)
+    else
+        f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    end
     Debug(1, "Parser.Outgoing disabled.")
 end
 
