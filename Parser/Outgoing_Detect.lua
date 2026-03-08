@@ -147,16 +147,16 @@ local _relevantSubevents = {
 }
 
 local _onEventCount = 0
-f:SetScript("OnEvent", function()
+f:SetScript("OnEvent", function(self, event)
     _onEventCount = _onEventCount + 1
-    if _onEventCount <= 3 then
-        -- Unconditional: confirm handler fires at all
+    if _onEventCount <= 5 then
         print("|cff00ff00KSBT-Outgoing|r OnEvent #" .. _onEventCount
-            .. " _enabled=" .. tostring(Outgoing._enabled))
+            .. " event=" .. tostring(event))
     end
+    if event == "PLAYER_REGEN_DISABLED" then return end  -- diagnostic only
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
-    if _onEventCount <= 3 then
+    if _onEventCount <= 5 then
         print("|cff00ff00KSBT-Outgoing|r #info=" .. tostring(#info)
             .. " subevent=" .. tostring(info[2]))
     end
@@ -184,7 +184,9 @@ function Outgoing:Enable()
     self._enabled = true
     f:Show()
     f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    print("|cff00ff00KSBT-Outgoing|r Enable() called - CLEU registered, shown=" .. tostring(f:IsShown()))
+    f:RegisterEvent("COMBAT_LOG_EVENT")
+    f:RegisterEvent("PLAYER_REGEN_DISABLED")  -- diagnostic: enters combat
+    print("|cff00ff00KSBT-Outgoing|r Enable() - registered CLEU/COMBAT_LOG_EVENT/PLAYER_REGEN_DISABLED, shown=" .. tostring(f:IsShown()))
     Debug(1, "Parser.Outgoing enabled.")
 end
 
