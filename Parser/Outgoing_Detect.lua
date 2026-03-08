@@ -16,6 +16,14 @@ local function Debug(level, ...)
     end
 end
 
+local function DebugPrint(msg)
+    local db = KSBT.db and KSBT.db.profile
+    local lvl = db and db.diagnostics and db.diagnostics.debugLevel or 0
+    if lvl >= 1 then
+        print("|cff00ff00KSBT-Outgoing|r " .. tostring(msg))
+    end
+end
+
 local function IsPlayerSource(flags)
     if not flags then return false end
     return band(flags, AFFILIATION_MINE) ~= 0 and band(flags, TYPE_PLAYER) ~= 0
@@ -36,10 +44,26 @@ local function Normalize(info)
     local ts       = info[1]
     local subevent = info[2]
     local sourceFlags = info[6]
-    if not IsPlayerSource(sourceFlags) then return nil end
+    if not IsPlayerSource(sourceFlags) then
+        -- Only log spell/swing events to avoid spam
+        if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE"
+        or subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL"
+        or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
+            DebugPrint("IsPlayerSource FAILED for " .. tostring(subevent)
+                .. " flags=" .. tostring(sourceFlags))
+        end
+        return nil
+    end
+
+    DebugPrint("IsPlayerSource OK: " .. tostring(subevent)
+        .. " flags=" .. tostring(sourceFlags))
 
     local db = DB()
-    if not db or not db.outgoing then return nil end
+    if not db or not db.outgoing then
+        DebugPrint("DB check FAILED: db=" .. tostring(db ~= nil)
+            .. " outgoing=" .. tostring(db and db.outgoing ~= nil))
+        return nil
+    end
 
     local ev = {
         timestamp  = ts,
@@ -103,6 +127,9 @@ local function Normalize(info)
         end
     end
 
+    DebugPrint("Normalize OK: kind=" .. tostring(ev.kind)
+        .. " amount=" .. tostring(ev.amount)
+        .. " spell=" .. tostring(ev.spellName))
     return ev
 end
 
