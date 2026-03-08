@@ -146,9 +146,20 @@ local _relevantSubevents = {
     RANGE_DAMAGE=true, SPELL_HEAL=true, SPELL_PERIODIC_HEAL=true,
 }
 
+local _onEventCount = 0
 f:SetScript("OnEvent", function()
+    _onEventCount = _onEventCount + 1
+    if _onEventCount <= 3 then
+        -- Unconditional: confirm handler fires at all
+        print("|cff00ff00KSBT-Outgoing|r OnEvent #" .. _onEventCount
+            .. " _enabled=" .. tostring(Outgoing._enabled))
+    end
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
+    if _onEventCount <= 3 then
+        print("|cff00ff00KSBT-Outgoing|r #info=" .. tostring(#info)
+            .. " subevent=" .. tostring(info[2]))
+    end
     if #info == 0 then return end
     -- Only log relevant subevents to avoid chat spam
     if _relevantSubevents[info[2]] then
