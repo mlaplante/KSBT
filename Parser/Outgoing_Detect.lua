@@ -182,8 +182,9 @@ end)
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
+    f:Show()
     f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    print("|cff00ff00KSBT-Outgoing|r Enable() called - CLEU registered")
+    print("|cff00ff00KSBT-Outgoing|r Enable() called - CLEU registered, shown=" .. tostring(f:IsShown()))
     Debug(1, "Parser.Outgoing enabled.")
 end
 
