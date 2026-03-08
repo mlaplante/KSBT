@@ -156,30 +156,64 @@ local function StartEventDiag()
     _diagFrame:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED")
     _diagFrame:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED")
 
+    local _meterHitCount = 0
+
+    local function DumpTable(t, prefix, depth)
+        if type(t) ~= "table" or depth > 3 then
+            print(prefix .. tostring(t))
+            return
+        end
+        local keys = {}
+        for k in pairs(t) do keys[#keys+1] = k end
+        table.sort(keys, function(a,b) return tostring(a) < tostring(b) end)
+        if #keys == 0 then
+            print(prefix .. "{empty table}")
+            return
+        end
+        for _, k in ipairs(keys) do
+            local v = t[k]
+            if type(v) == "table" then
+                print(prefix .. tostring(k) .. " = {")
+                DumpTable(v, prefix .. "  ", depth + 1)
+            else
+                print(prefix .. tostring(k) .. " = " .. tostring(v))
+            end
+        end
+    end
+
     _diagFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "UNIT_COMBAT" then
-            _unitCombatCount = _unitCombatCount + 1
-            if _unitCombatCount <= 20 then
-                local unit, action, flagText, amount, schoolMask = ...
-                print("|cffff9900KSBT-UNIT_COMBAT|r #" .. _unitCombatCount
-                    .. " unit=" .. tostring(unit)
-                    .. " action=" .. tostring(action)
-                    .. " flags=" .. tostring(flagText)
-                    .. " amt=" .. tostring(amount)
-                    .. " school=" .. tostring(schoolMask))
+        if event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
+            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
+            _meterHitCount = _meterHitCount + 1
+            if _meterHitCount > 3 then return end
+
+            print("|cffff9900KSBT-DmgMeter|r === Hit #" .. _meterHitCount .. " " .. event .. " ===")
+            print("|cffff9900KSBT-DmgMeter|r args: " .. tostring(select("#",...)) .. " -> " .. tostring((...)))
+
+            if not C_DamageMeter then
+                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter is nil")
+                return
             end
 
-        elseif event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
-            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
-            print("|cffff9900KSBT-DmgMeter|r " .. event .. " fired")
-            -- Probe the C_DamageMeter API
-            if C_DamageMeter then
-                local keys = {}
-                for k in pairs(C_DamageMeter) do keys[#keys+1] = k end
-                table.sort(keys)
-                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter keys: " .. table.concat(keys, ", "))
-            else
-                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter is nil")
+            print("|cffff9900KSBT-DmgMeter|r IsDamageMeterAvailable=" .. tostring(C_DamageMeter.IsDamageMeterAvailable()))
+
+            -- Probe GetAvailableCombatSessions
+            local sessions = C_DamageMeter.GetAvailableCombatSessions()
+            print("|cffff9900KSBT-DmgMeter|r GetAvailableCombatSessions:")
+            DumpTable(sessions, "  ", 0)
+
+            -- Try common session types (numeric enum values 0-5)
+            for i = 0, 5 do
+                local ok, result = pcall(C_DamageMeter.GetCombatSessionFromType, i)
+                if ok and result ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromType(" .. i .. "):")
+                    DumpTable(result, "  ", 0)
+                end
+                local ok2, result2 = pcall(C_DamageMeter.GetCombatSessionSourceFromType, i)
+                if ok2 and result2 ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromType(" .. i .. "):")
+                    DumpTable(result2, "  ", 0)
+                end
             end
         end
     end)
