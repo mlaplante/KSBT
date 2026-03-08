@@ -152,7 +152,7 @@ local function StartEventDiag()
     print("|cffff9900KSBT-EventDiag|r Probing UNIT_COMBAT + DAMAGE_METER events...")
 
     _diagFrame = CreateFrame("Frame")
-    _diagFrame:RegisterEvent("UNIT_COMBAT")
+    _diagFrame:RegisterEvent("ASSISTED_COMBAT_ACTION_SPELL_CAST")
     _diagFrame:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED")
     _diagFrame:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED")
 
@@ -181,38 +181,68 @@ local function StartEventDiag()
         end
     end
 
+    local _spellCastCount = 0
+
     _diagFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
-            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
-            _meterHitCount = _meterHitCount + 1
-            if _meterHitCount > 3 then return end
-
-            print("|cffff9900KSBT-DmgMeter|r === Hit #" .. _meterHitCount .. " " .. event .. " ===")
-            print("|cffff9900KSBT-DmgMeter|r args: " .. tostring(select("#",...)) .. " -> " .. tostring((...)))
-
-            if not C_DamageMeter then
-                print("|cffff9900KSBT-DmgMeter|r C_DamageMeter is nil")
-                return
+        if event == "ASSISTED_COMBAT_ACTION_SPELL_CAST" then
+            _spellCastCount = _spellCastCount + 1
+            if _spellCastCount <= 10 then
+                print("|cff00ccffKSBT-SpellCast|r #" .. _spellCastCount
+                    .. " nargs=" .. tostring(select("#",...)))
+                for i = 1, select("#",...) do
+                    local v = select(i, ...)
+                    if type(v) == "table" then
+                        print("|cff00ccffKSBT-SpellCast|r  arg[" .. i .. "] = {table}:")
+                        DumpTable(v, "    ", 0)
+                    else
+                        print("|cff00ccffKSBT-SpellCast|r  arg[" .. i .. "] = " .. tostring(v))
+                    end
+                end
             end
 
-            print("|cffff9900KSBT-DmgMeter|r IsDamageMeterAvailable=" .. tostring(C_DamageMeter.IsDamageMeterAvailable()))
+        elseif event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
+            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
+            _meterHitCount = _meterHitCount + 1
+            if _meterHitCount > 2 then return end
 
-            -- Probe GetAvailableCombatSessions
+            print("|cffff9900KSBT-DmgMeter|r === Fire #" .. _meterHitCount .. " " .. event .. " ===")
+            print("|cffff9900KSBT-DmgMeter|r event args: nargs=" .. tostring(select("#",...)) .. " arg1=" .. tostring((...)))
+
+            if not C_DamageMeter then return end
+
+            -- Get the most recent session and call GetCombatSessionFromID on it
             local sessions = C_DamageMeter.GetAvailableCombatSessions()
-            print("|cffff9900KSBT-DmgMeter|r GetAvailableCombatSessions:")
-            DumpTable(sessions, "  ", 0)
+            if type(sessions) == "table" and #sessions > 0 then
+                local latest = sessions[#sessions]
+                print("|cffff9900KSBT-DmgMeter|r Latest session: id=" .. tostring(latest and latest.sessionID) .. " name=" .. tostring(latest and latest.name))
 
-            -- Try common session types (numeric enum values 0-5)
-            for i = 0, 5 do
-                local ok, result = pcall(C_DamageMeter.GetCombatSessionFromType, i)
-                if ok and result ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromType(" .. i .. "):")
-                    DumpTable(result, "  ", 0)
+                if latest and latest.sessionID then
+                    local sid = latest.sessionID
+                    local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid)
+                    if ok and res ~= nil then
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "):")
+                        DumpTable(res, "  ", 0)
+                    else
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. ") = nil or error: " .. tostring(res))
+                    end
+
+                    local ok2, res2 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid)
+                    if ok2 and res2 ~= nil then
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "):")
+                        DumpTable(res2, "  ", 0)
+                    else
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. ") = nil or error: " .. tostring(res2))
+                    end
                 end
-                local ok2, result2 = pcall(C_DamageMeter.GetCombatSessionSourceFromType, i)
-                if ok2 and result2 ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromType(" .. i .. "):")
-                    DumpTable(result2, "  ", 0)
+            end
+
+            -- Also probe Enum.DamageMeterSessionType if it exists
+            if _meterHitCount == 1 then
+                if Enum and Enum.DamageMeterSessionType then
+                    print("|cffff9900KSBT-DmgMeter|r Enum.DamageMeterSessionType:")
+                    DumpTable(Enum.DamageMeterSessionType, "  ", 0)
+                else
+                    print("|cffff9900KSBT-DmgMeter|r Enum.DamageMeterSessionType does not exist")
                 end
             end
         end
