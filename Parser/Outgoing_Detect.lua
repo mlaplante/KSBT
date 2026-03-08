@@ -159,7 +159,7 @@ local function StartEventDiag()
     local _meterHitCount = 0
 
     local function DumpTable(t, prefix, depth)
-        if type(t) ~= "table" or depth > 3 then
+        if type(t) ~= "table" or depth > 6 then
             print(prefix .. tostring(t))
             return
         end
@@ -221,25 +221,14 @@ local function StartEventDiag()
             local playerGUID = UnitGUID("player")
             local playerID = UnitCreatureID and UnitCreatureID("player") or 0
 
-            -- Try all 3 session types
-            for typeName, typeVal in pairs({Overall=0, Current=1, Expired=2}) do
-                local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid, typeVal)
+            -- Focus on Current type with playerGUID — this is what returned combatSpells
+            for typeName, typeVal in pairs({Current=1, Overall=0}) do
+                local ok, res = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal, playerGUID, playerID)
                 if ok and res ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "," .. typeName .. "):")
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") playerGUID:")
                     DumpTable(res, "  ", 0)
-                end
-
-                -- Try source with and without GUID
-                local ok2, res2 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal)
-                if ok2 and res2 ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") no GUID:")
-                    DumpTable(res2, "  ", 0)
-                end
-
-                local ok3, res3 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal, playerGUID, playerID)
-                if ok3 and res3 ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") with playerGUID:")
-                    DumpTable(res3, "  ", 0)
+                else
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") ERROR: " .. tostring(res))
                 end
             end
         end
