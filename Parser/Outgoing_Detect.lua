@@ -141,38 +141,10 @@ local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
--- Probe UNIT_COMBAT and DAMAGE_METER_* to understand WoW Midnight per-hit data.
-local _diagFrame = nil
-local _diagDone = false
-local _unitCombatCount = 0
-
-local function ProbeFCT()
-    print("|cffff9900KSBT-FCT|r --- C_CombatText probe ---")
-    -- Dump C_CombatText API keys
-    if C_CombatText then
-        local keys = {}
-        for k in pairs(C_CombatText) do keys[#keys+1] = k end
-        table.sort(keys)
-        print("|cffff9900KSBT-FCT|r C_CombatText keys: " .. table.concat(keys, ", "))
-    else
-        print("|cffff9900KSBT-FCT|r C_CombatText=nil")
-    end
-    -- Probe GetCurrentCombatTextEventInfo immediately
-    print("|cffff9900KSBT-FCT|r GetCurrentCombatTextEventInfo=" .. tostring(GetCurrentCombatTextEventInfo))
-    if GetCurrentCombatTextEventInfo then
-        local ok, a, b, c, d, e = pcall(GetCurrentCombatTextEventInfo)
-        print("|cffff9900KSBT-FCT|r  immediate call: ok=" .. tostring(ok)
-            .. " a=" .. tostring(a) .. " b=" .. tostring(b)
-            .. " c=" .. tostring(c) .. " d=" .. tostring(d))
-    end
-    print("|cffff9900KSBT-FCT|r CombatTextSetActiveUnit=" .. tostring(CombatTextSetActiveUnit))
-    print("|cffff9900KSBT-FCT|r --- end C_CombatText probe ---")
-end
-
--- Set player as active unit for C_CombatText
+-- COMBAT_TEXT_UPDATE probe: determine if GetCurrentEventInfo() is accessible
 if C_CombatText and C_CombatText.SetActiveUnit then
     C_CombatText.SetActiveUnit("player")
-    print("|cff00ccffKSBT-CT|r C_CombatText.SetActiveUnit('player') ok, activeUnit=" .. tostring(C_CombatText.GetActiveUnit and C_CombatText.GetActiveUnit()))
+    print("|cff00ccffKSBT-CT|r SetActiveUnit ok")
 end
 
 local _ctFrame = CreateFrame("Frame")
@@ -184,144 +156,48 @@ print("|cff00ccffKSBT-CT|r registered COMBAT_TEXT_UPDATE")
 _ctFrame:SetScript("OnEvent", function(self, event, ...)
     if event ~= "COMBAT_TEXT_UPDATE" then return end
     _ctCount = _ctCount + 1
-    if _ctCount > 30 then return end
+    if _ctCount > 10 then return end
 
-    local evType = ...  -- sub-event type, e.g. "HEAL", "DAMAGE", "PERIODIC_HEAL"
+    local evType = ...
     print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " type=" .. tostring(evType))
 
-    -- Retrieve the actual event data
-    local a, b, c, d, e
-    if C_CombatText and C_CombatText.GetCurrentEventInfo then
-        a, b, c, d, e = C_CombatText.GetCurrentEventInfo()
-        print("|cff00ccffKSBT-CT|r  C_CombatText.GetCurrentEventInfo() ="
-            .. " a=" .. tostring(a) .. " b=" .. tostring(b)
-            .. " c=" .. tostring(c) .. " d=" .. tostring(d) .. " e=" .. tostring(e))
+    -- Use pcall so any secret-number or protected-call error is caught
+    local ok, r1, r2, r3 = pcall(function()
+        local a, b, c = C_CombatText.GetCurrentEventInfo()
+        -- type() is safe even on secret numbers
+        return type(a), type(b), type(c)
+    end)
+    if not ok then
+        print("|cff00ccffKSBT-CT|r  GetCurrentEventInfo BLOCKED: " .. tostring(r1))
+    else
+        print("|cff00ccffKSBT-CT|r  types a=" .. tostring(r1) .. " b=" .. tostring(r2) .. " c=" .. tostring(r3))
+        if r1 == "number" then
+            -- Test if the number is readable (not a secret number)
+            local ok2, arith = pcall(function()
+                local a = C_CombatText.GetCurrentEventInfo()
+                return a + 0
+            end)
+            if ok2 then
+                print("|cff00ccffKSBT-CT|r  amount=" .. tostring(arith) .. " (readable!)")
+            else
+                print("|cff00ccffKSBT-CT|r  SECRET NUMBER: " .. tostring(arith))
+            end
+        end
     end
+
+    -- Also probe the global alias
     if GetCurrentCombatTextEventInfo then
-        local a2, b2, c2, d2, e2 = GetCurrentCombatTextEventInfo()
-        print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo() ="
-            .. " a=" .. tostring(a2) .. " b=" .. tostring(b2)
-            .. " c=" .. tostring(c2) .. " d=" .. tostring(d2) .. " e=" .. tostring(e2))
+        local ok2, e1, e2, e3 = pcall(function()
+            local a, b, c = GetCurrentCombatTextEventInfo()
+            return type(a), type(b), type(c)
+        end)
+        if not ok2 then
+            print("|cff00ccffKSBT-CT|r  global BLOCKED: " .. tostring(e1))
+        else
+            print("|cff00ccffKSBT-CT|r  global types a=" .. tostring(e1) .. " b=" .. tostring(e2) .. " c=" .. tostring(e3))
+        end
     end
 end)
-
-local function StartEventDiag()
-    if _diagDone then return end
-    _diagDone = true
-
-    ProbeFCT()
-
-    _diagFrame = CreateFrame("Frame")
-    _diagFrame:RegisterEvent("ASSISTED_COMBAT_ACTION_SPELL_CAST")
-    _diagFrame:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED")
-    _diagFrame:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED")
-    print("|cffff9900KSBT-EventDiag|r Listening for DAMAGE_METER_* events...")
-
-    local _meterHitCount = 0
-
-    local function DumpTable(t, prefix, depth)
-        if type(t) ~= "table" or depth > 6 then
-            print(prefix .. tostring(t))
-            return
-        end
-        local keys = {}
-        for k in pairs(t) do keys[#keys+1] = k end
-        table.sort(keys, function(a,b) return tostring(a) < tostring(b) end)
-        if #keys == 0 then
-            print(prefix .. "{empty table}")
-            return
-        end
-        for _, k in ipairs(keys) do
-            local v = t[k]
-            if type(v) == "table" then
-                print(prefix .. tostring(k) .. " = {")
-                DumpTable(v, prefix .. "  ", depth + 1)
-            else
-                print(prefix .. tostring(k) .. " = " .. tostring(v))
-            end
-        end
-    end
-
-    local _spellCastCount = 0
-
-    _diagFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "ASSISTED_COMBAT_ACTION_SPELL_CAST" then
-            _spellCastCount = _spellCastCount + 1
-            if _spellCastCount <= 10 then
-                print("|cff00ccffKSBT-SpellCast|r #" .. _spellCastCount
-                    .. " nargs=" .. tostring(select("#",...)))
-                for i = 1, select("#",...) do
-                    local v = select(i, ...)
-                    if type(v) == "table" then
-                        print("|cff00ccffKSBT-SpellCast|r  arg[" .. i .. "] = {table}:")
-                        DumpTable(v, "    ", 0)
-                    else
-                        print("|cff00ccffKSBT-SpellCast|r  arg[" .. i .. "] = " .. tostring(v))
-                    end
-                end
-            end
-
-        elseif event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
-            or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
-            _meterHitCount = _meterHitCount + 1
-            -- Only dump at fires 100 and 200 (well after session is populated)
-            if _meterHitCount ~= 100 and _meterHitCount ~= 200 then return end
-
-            local a1, a2 = ...
-            print("|cffff9900KSBT-DmgMeter|r === Dump at fire#" .. _meterHitCount
-                .. " " .. event .. " a1=" .. tostring(a1) .. " a2=" .. tostring(a2) .. " ===")
-
-            if not C_DamageMeter then return end
-            local playerGUID = UnitGUID("player")
-            local playerID = UnitCreatureID and UnitCreatureID("player") or 0
-
-            -- GetCombatSessionFromID with the current session and all type values
-            local sessions = C_DamageMeter.GetAvailableCombatSessions()
-            local sid = sessions and #sessions > 0 and sessions[#sessions].sessionID
-            print("|cffff9900KSBT-DmgMeter|r currentSessionID=" .. tostring(sid))
-
-            if sid then
-                for _, typeVal in ipairs({0, 1, 2}) do
-                    local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid, typeVal)
-                    if ok and res ~= nil then
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "," .. typeVal .. "):")
-                        DumpTable(res, "  ", 0)
-                    end
-                    local ok2, src = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal, playerGUID, playerID)
-                    if ok2 and src ~= nil then
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeVal .. "):")
-                        DumpTable(src, "  ", 0)
-                        -- Also probe common field names directly (metamethod check)
-                        if src.combatSpells and src.combatSpells[1] then
-                            local cs = src.combatSpells[1]
-                            print("|cffff9900KSBT-DmgMeter|r  Direct field probe on combatSpells[1]:")
-                            for _, fname in ipairs({"damage","totalDamage","damageAmount","healing","totalHealing",
-                                "healingAmount","spellID","spellId","name","spellName","hits","crits",
-                                "hitCount","critCount","amount","total"}) do
-                                local v = cs[fname]
-                                if v ~= nil then
-                                    print("|cffff9900KSBT-DmgMeter|r    " .. fname .. "=" .. tostring(v))
-                                end
-                            end
-                            if cs.combatSpellDetails then
-                                local cd = cs.combatSpellDetails
-                                print("|cffff9900KSBT-DmgMeter|r  Direct field probe on combatSpellDetails:")
-                                for _, fname in ipairs({"damage","totalDamage","healing","totalHealing",
-                                    "spellID","spellId","name","hits","crits","amount","total",
-                                    "damageDealt","healingDone"}) do
-                                    local v = cd[fname]
-                                    if v ~= nil then
-                                        print("|cffff9900KSBT-DmgMeter|r    " .. fname .. "=" .. tostring(v))
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
 
 local _relevantSubevents = {
     SWING_DAMAGE=true, SPELL_DAMAGE=true, SPELL_PERIODIC_DAMAGE=true,
@@ -334,10 +210,6 @@ f:SetScript("OnEvent", function(self, event)
     if _onEventCount <= 5 then
         print("|cff00ff00KSBT-Outgoing|r OnEvent #" .. _onEventCount
             .. " event=" .. tostring(event))
-    end
-    if event == "PLAYER_REGEN_DISABLED" then
-        StartEventDiag()
-        return
     end
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
@@ -367,10 +239,6 @@ end)
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
-
-    -- Always register PLAYER_REGEN_DISABLED on the frame for the event diag
-    f:RegisterEvent("PLAYER_REGEN_DISABLED")
-    print("|cff00ff00KSBT-Outgoing|r Enable() - registered PLAYER_REGEN_DISABLED on frame")
 
     if EventRegistry then
         -- WoW Midnight: CLEU is delivered via EventRegistry, not frame:RegisterEvent
