@@ -217,21 +217,48 @@ local function StartEventDiag()
             local playerGUID = UnitGUID("player")
             local playerID = UnitCreatureID and UnitCreatureID("player") or 0
 
-            -- Dump GetCombatSessionFromType for all known type values
-            for _, typeVal in ipairs({0, 1, 2, 3, 10}) do
-                local ok, res = pcall(C_DamageMeter.GetCombatSessionFromType, typeVal)
-                if ok and res ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromType(" .. typeVal .. "):")
-                    DumpTable(res, "  ", 0)
-                end
-            end
+            -- GetCombatSessionFromID with the current session and all type values
+            local sessions = C_DamageMeter.GetAvailableCombatSessions()
+            local sid = sessions and #sessions > 0 and sessions[#sessions].sessionID
+            print("|cffff9900KSBT-DmgMeter|r currentSessionID=" .. tostring(sid))
 
-            -- Dump GetCombatSessionSourceFromType with playerGUID
-            for _, typeVal in ipairs({0, 1, 2, 3, 10}) do
-                local ok, res = pcall(C_DamageMeter.GetCombatSessionSourceFromType, typeVal, playerGUID, playerID)
-                if ok and res ~= nil then
-                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromType(" .. typeVal .. ",GUID):")
-                    DumpTable(res, "  ", 0)
+            if sid then
+                for _, typeVal in ipairs({0, 1, 2}) do
+                    local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid, typeVal)
+                    if ok and res ~= nil then
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "," .. typeVal .. "):")
+                        DumpTable(res, "  ", 0)
+                    end
+                    local ok2, src = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal, playerGUID, playerID)
+                    if ok2 and src ~= nil then
+                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeVal .. "):")
+                        DumpTable(src, "  ", 0)
+                        -- Also probe common field names directly (metamethod check)
+                        if src.combatSpells and src.combatSpells[1] then
+                            local cs = src.combatSpells[1]
+                            print("|cffff9900KSBT-DmgMeter|r  Direct field probe on combatSpells[1]:")
+                            for _, fname in ipairs({"damage","totalDamage","damageAmount","healing","totalHealing",
+                                "healingAmount","spellID","spellId","name","spellName","hits","crits",
+                                "hitCount","critCount","amount","total"}) do
+                                local v = cs[fname]
+                                if v ~= nil then
+                                    print("|cffff9900KSBT-DmgMeter|r    " .. fname .. "=" .. tostring(v))
+                                end
+                            end
+                            if cs.combatSpellDetails then
+                                local cd = cs.combatSpellDetails
+                                print("|cffff9900KSBT-DmgMeter|r  Direct field probe on combatSpellDetails:")
+                                for _, fname in ipairs({"damage","totalDamage","healing","totalHealing",
+                                    "spellID","spellId","name","hits","crits","amount","total",
+                                    "damageDealt","healingDone"}) do
+                                    local v = cd[fname]
+                                    if v ~= nil then
+                                        print("|cffff9900KSBT-DmgMeter|r    " .. fname .. "=" .. tostring(v))
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end
         end
