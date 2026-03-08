@@ -206,31 +206,33 @@ local function StartEventDiag()
         elseif event == "DAMAGE_METER_CURRENT_SESSION_UPDATED"
             or event == "DAMAGE_METER_COMBAT_SESSION_UPDATED" then
             _meterHitCount = _meterHitCount + 1
+            -- Only dump at fires 100 and 200 (well after session is populated)
+            if _meterHitCount ~= 100 and _meterHitCount ~= 200 then return end
+
             local a1, a2 = ...
-            print("|cffff9900KSBT-DmgMeter|r Fire#" .. _meterHitCount .. " " .. event
-                .. " a1=" .. tostring(a1) .. " a2=" .. tostring(a2))
-            if _meterHitCount > 5 then return end
+            print("|cffff9900KSBT-DmgMeter|r === Dump at fire#" .. _meterHitCount
+                .. " " .. event .. " a1=" .. tostring(a1) .. " a2=" .. tostring(a2) .. " ===")
 
             if not C_DamageMeter then return end
             local playerGUID = UnitGUID("player")
             local playerID = UnitCreatureID and UnitCreatureID("player") or 0
 
-            -- GetCombatSessionFromType(Current=1)
-            local ok1, sess = pcall(C_DamageMeter.GetCombatSessionFromType, 1)
-            if ok1 and sess ~= nil then
-                print("|cffff9900KSBT-DmgMeter|r  GetCombatSessionFromType(Current):")
-                DumpTable(sess, "    ", 0)
-            else
-                print("|cffff9900KSBT-DmgMeter|r  GetCombatSessionFromType(Current)=nil/err:" .. tostring(sess))
+            -- Dump GetCombatSessionFromType for all known type values
+            for _, typeVal in ipairs({0, 1, 2, 3, 10}) do
+                local ok, res = pcall(C_DamageMeter.GetCombatSessionFromType, typeVal)
+                if ok and res ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromType(" .. typeVal .. "):")
+                    DumpTable(res, "  ", 0)
+                end
             end
 
-            -- GetCombatSessionSourceFromType(Current=1, playerGUID)
-            local ok2, src = pcall(C_DamageMeter.GetCombatSessionSourceFromType, 1, playerGUID, playerID)
-            if ok2 and src ~= nil then
-                print("|cffff9900KSBT-DmgMeter|r  GetCombatSessionSourceFromType(Current,GUID):")
-                DumpTable(src, "    ", 0)
-            else
-                print("|cffff9900KSBT-DmgMeter|r  GetCombatSessionSourceFromType(Current,GUID)=nil/err:" .. tostring(src))
+            -- Dump GetCombatSessionSourceFromType with playerGUID
+            for _, typeVal in ipairs({0, 1, 2, 3, 10}) do
+                local ok, res = pcall(C_DamageMeter.GetCombatSessionSourceFromType, typeVal, playerGUID, playerID)
+                if ok and res ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromType(" .. typeVal .. ",GUID):")
+                    DumpTable(res, "  ", 0)
+                end
             end
         end
     end)
