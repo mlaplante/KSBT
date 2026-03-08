@@ -187,7 +187,9 @@ function Outgoing:Enable()
         -- WoW Midnight: CLEU is delivered via EventRegistry, not frame:RegisterEvent
         EventRegistry:RegisterFrameEventAndCallback(
             "COMBAT_LOG_EVENT_UNFILTERED", Outgoing._OnCLEU, Outgoing)
-        print("|cff00ff00KSBT-Outgoing|r Enable() - registered via EventRegistry")
+        EventRegistry:RegisterFrameEventAndCallback(
+            "COMBAT_LOG_EVENT", Outgoing._OnCLEU, Outgoing)
+        print("|cff00ff00KSBT-Outgoing|r Enable() - registered CLEU+filtered via EventRegistry")
     else
         -- Fallback for older clients
         f:Show()
@@ -197,9 +199,20 @@ function Outgoing:Enable()
     Debug(1, "Parser.Outgoing enabled.")
 end
 
-function Outgoing._OnCLEU()
+local _cleuCallCount = 0
+function Outgoing._OnCLEU(...)
+    _cleuCallCount = _cleuCallCount + 1
+    if _cleuCallCount <= 3 then
+        -- Unconditional: confirm callback fires at all
+        print("|cff00ff00KSBT-Outgoing|r _OnCLEU #" .. _cleuCallCount
+            .. " args=" .. tostring(select("#", ...)))
+    end
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
+    if _cleuCallCount <= 3 then
+        print("|cff00ff00KSBT-Outgoing|r #info=" .. tostring(#info)
+            .. " subevent=" .. tostring(info[2]))
+    end
     if #info == 0 then return end
 
     DebugPrint("EventRegistry CLEU: subevent=" .. tostring(info[2]))
