@@ -146,12 +146,41 @@ local _diagFrame = nil
 local _diagDone = false
 local _unitCombatCount = 0
 
+local function ProbeFCT()
+    print("|cffff9900KSBT-FCT|r --- Blizzard FCT probe ---")
+    -- Check for legacy CombatText functions
+    print("|cffff9900KSBT-FCT|r CombatText_AddMessage=" .. tostring(CombatText_AddMessage))
+    print("|cffff9900KSBT-FCT|r CombatText_StandardAddMessage=" .. tostring(CombatText_StandardAddMessage))
+    print("|cffff9900KSBT-FCT|r UIParent_CombatText_AddMessage=" .. tostring(UIParent_CombatText_AddMessage))
+    -- Check for FCT frames
+    for _, name in ipairs({"CombatText","FloatingCombatText","PlayerFloatingCombatText","CombatTextPlayerFloat"}) do
+        local f = _G[name]
+        print("|cffff9900KSBT-FCT|r " .. name .. "=" .. tostring(f))
+    end
+    -- Check for scroll frame objects
+    local fsObj = _G["UIPARENT_MANAGED_FRAME_POSITIONS"]
+    print("|cffff9900KSBT-FCT|r UIPARENT_MANAGED_FRAME_POSITIONS=" .. tostring(fsObj))
+    -- List global keys containing "CombatText" or "FloatingCombat"
+    local found = {}
+    for k, v in pairs(_G) do
+        local ks = tostring(k)
+        if ks:find("CombatText") or ks:find("FloatingCombat") then
+            found[#found+1] = ks .. "=" .. type(v)
+        end
+    end
+    table.sort(found)
+    print("|cffff9900KSBT-FCT|r Globals matching CombatText/FloatingCombat:")
+    for _, s in ipairs(found) do
+        print("|cffff9900KSBT-FCT|r  " .. s)
+    end
+    print("|cffff9900KSBT-FCT|r --- end FCT probe ---")
+end
+
 local function StartEventDiag()
     if _diagDone then return end
     _diagDone = true
 
-    local avail = C_DamageMeter and C_DamageMeter.IsDamageMeterAvailable and C_DamageMeter.IsDamageMeterAvailable()
-    print("|cffff9900KSBT-EventDiag|r IsDamageMeterAvailable=" .. tostring(avail))
+    ProbeFCT()
 
     _diagFrame = CreateFrame("Frame")
     _diagFrame:RegisterEvent("ASSISTED_COMBAT_ACTION_SPELL_CAST")
