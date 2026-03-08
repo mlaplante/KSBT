@@ -84,6 +84,8 @@ function Addon:OnEnable()
             if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Enable then
                 KSBT.Parser.Incoming:Enable()
             end
+            print("|cffff9900KSBT-Init|r OnEnable: Parser.Outgoing=" .. tostring(KSBT.Parser.Outgoing)
+                .. " Enable=" .. tostring(KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable))
             if KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable then
                 KSBT.Parser.Outgoing:Enable()
             end

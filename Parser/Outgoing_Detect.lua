@@ -1,10 +1,13 @@
 local ADDON_NAME, KSBT = ...
+print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: file loading...")
 
 KSBT.Parser = KSBT.Parser or {}
 KSBT.Parser.Outgoing = KSBT.Parser.Outgoing or {}
 local Outgoing = KSBT.Parser.Outgoing
+print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: table created, defining functions...")
 
 local band = bit.band
+print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: bit.band=" .. tostring(band))
 local AFFILIATION_MINE = COMBATLOG_OBJECT_AFFILIATION_MINE or 0x00000001
 local TYPE_PLAYER      = COMBATLOG_OBJECT_TYPE_PLAYER      or 0x00000400
 
@@ -179,3 +182,5 @@ function Outgoing:Disable()
     f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     Debug(1, "Parser.Outgoing disabled.")
 end
+
+print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: FULLY LOADED, Enable=" .. tostring(Outgoing.Enable))
