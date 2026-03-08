@@ -141,6 +141,40 @@ local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
+-- RegisterAllEvents diagnostic: fires once on PLAYER_REGEN_DISABLED,
+-- captures all unique event names for 3 seconds, then prints them.
+local _diagFrame = nil
+local _diagSeen = {}
+local _diagDone = false
+
+local function StartEventDiag()
+    if _diagDone then return end
+    _diagDone = true
+    print("|cffff9900KSBT-EventDiag|r Starting RegisterAllEvents for 3 seconds...")
+
+    _diagFrame = CreateFrame("Frame")
+    _diagFrame:RegisterAllEvents()
+    _diagFrame:SetScript("OnEvent", function(self, event, ...)
+        if not _diagSeen[event] then
+            _diagSeen[event] = true
+        end
+    end)
+
+    C_Timer.After(3, function()
+        if _diagFrame then
+            _diagFrame:UnregisterAllEvents()
+            _diagFrame:SetScript("OnEvent", nil)
+        end
+        local list = {}
+        for k in pairs(_diagSeen) do list[#list+1] = k end
+        table.sort(list)
+        print("|cffff9900KSBT-EventDiag|r Events seen (" .. #list .. " unique):")
+        for _, name in ipairs(list) do
+            print("|cffff9900KSBT-EventDiag|r  " .. name)
+        end
+    end)
+end
+
 local _relevantSubevents = {
     SWING_DAMAGE=true, SPELL_DAMAGE=true, SPELL_PERIODIC_DAMAGE=true,
     RANGE_DAMAGE=true, SPELL_HEAL=true, SPELL_PERIODIC_HEAL=true,
@@ -153,7 +187,10 @@ f:SetScript("OnEvent", function(self, event)
         print("|cff00ff00KSBT-Outgoing|r OnEvent #" .. _onEventCount
             .. " event=" .. tostring(event))
     end
-    if event == "PLAYER_REGEN_DISABLED" then return end  -- diagnostic only
+    if event == "PLAYER_REGEN_DISABLED" then
+        StartEventDiag()
+        return
+    end
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
     if _onEventCount <= 5 then
