@@ -147,34 +147,53 @@ local _diagDone = false
 local _unitCombatCount = 0
 
 local function ProbeFCT()
-    print("|cffff9900KSBT-FCT|r --- Blizzard FCT probe ---")
-    -- Check for legacy CombatText functions
-    print("|cffff9900KSBT-FCT|r CombatText_AddMessage=" .. tostring(CombatText_AddMessage))
-    print("|cffff9900KSBT-FCT|r CombatText_StandardAddMessage=" .. tostring(CombatText_StandardAddMessage))
-    print("|cffff9900KSBT-FCT|r UIParent_CombatText_AddMessage=" .. tostring(UIParent_CombatText_AddMessage))
-    -- Check for FCT frames
-    for _, name in ipairs({"CombatText","FloatingCombatText","PlayerFloatingCombatText","CombatTextPlayerFloat"}) do
-        local f = _G[name]
-        print("|cffff9900KSBT-FCT|r " .. name .. "=" .. tostring(f))
+    print("|cffff9900KSBT-FCT|r --- C_CombatText probe ---")
+    -- Dump C_CombatText API keys
+    if C_CombatText then
+        local keys = {}
+        for k in pairs(C_CombatText) do keys[#keys+1] = k end
+        table.sort(keys)
+        print("|cffff9900KSBT-FCT|r C_CombatText keys: " .. table.concat(keys, ", "))
+    else
+        print("|cffff9900KSBT-FCT|r C_CombatText=nil")
     end
-    -- Check for scroll frame objects
-    local fsObj = _G["UIPARENT_MANAGED_FRAME_POSITIONS"]
-    print("|cffff9900KSBT-FCT|r UIPARENT_MANAGED_FRAME_POSITIONS=" .. tostring(fsObj))
-    -- List global keys containing "CombatText" or "FloatingCombat"
-    local found = {}
-    for k, v in pairs(_G) do
-        local ks = tostring(k)
-        if ks:find("CombatText") or ks:find("FloatingCombat") then
-            found[#found+1] = ks .. "=" .. type(v)
+    -- Probe GetCurrentCombatTextEventInfo immediately
+    print("|cffff9900KSBT-FCT|r GetCurrentCombatTextEventInfo=" .. tostring(GetCurrentCombatTextEventInfo))
+    if GetCurrentCombatTextEventInfo then
+        local ok, a, b, c, d, e = pcall(GetCurrentCombatTextEventInfo)
+        print("|cffff9900KSBT-FCT|r  immediate call: ok=" .. tostring(ok)
+            .. " a=" .. tostring(a) .. " b=" .. tostring(b)
+            .. " c=" .. tostring(c) .. " d=" .. tostring(d))
+    end
+    print("|cffff9900KSBT-FCT|r CombatTextSetActiveUnit=" .. tostring(CombatTextSetActiveUnit))
+    print("|cffff9900KSBT-FCT|r --- end C_CombatText probe ---")
+end
+
+-- Listen for COMBAT_TEXT_UPDATE and any C_CombatText-related events
+local _ctFrame = CreateFrame("Frame")
+local _ctCount = 0
+_ctFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
+-- Also try the new-style event name
+for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE"}) do
+    pcall(function() _ctFrame:RegisterEvent(evName) end)
+end
+_ctFrame:SetScript("OnEvent", function(self, event, ...)
+    _ctCount = _ctCount + 1
+    if _ctCount <= 20 then
+        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. event
+            .. " nargs=" .. tostring(select("#",...)))
+        for i = 1, select("#",...) do
+            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "]=" .. tostring(select(i,...)))
+        end
+        if GetCurrentCombatTextEventInfo then
+            local ok, a, b, c, d, e, f = pcall(GetCurrentCombatTextEventInfo)
+            print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo: ok=" .. tostring(ok)
+                .. " a=" .. tostring(a) .. " b=" .. tostring(b)
+                .. " c=" .. tostring(c) .. " d=" .. tostring(d)
+                .. " e=" .. tostring(e) .. " f=" .. tostring(f))
         end
     end
-    table.sort(found)
-    print("|cffff9900KSBT-FCT|r Globals matching CombatText/FloatingCombat:")
-    for _, s in ipairs(found) do
-        print("|cffff9900KSBT-FCT|r  " .. s)
-    end
-    print("|cffff9900KSBT-FCT|r --- end FCT probe ---")
-end
+end)
 
 local function StartEventDiag()
     if _diagDone then return end
