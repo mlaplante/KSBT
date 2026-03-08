@@ -2,7 +2,7 @@
 ## Title: Kroth's Scrolling Battle Text
 ## Notes: Accurate floating combat text with confidence-based attribution
 ## Author: Kroth Haomarush
-## Version: 1.2.9
+## Version: 1.3.0
 ## SavedVariables: KrothSBTDB
 ## OptionalDeps: Ace3, LibSharedMedia-3.0
 
