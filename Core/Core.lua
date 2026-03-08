@@ -89,6 +89,11 @@ function Core:Init()
     if self.IncomingProbe and self.IncomingProbe.Init then
         self.IncomingProbe:Init()
     end
+
+    -- Outgoing probe/replay harness init.
+    if self.OutgoingProbe and self.OutgoingProbe.Init then
+        self.OutgoingProbe:Init()
+    end
 end
 
 function Core:Enable()
@@ -106,6 +111,9 @@ function Core:Enable()
     if self.Display and self.Display.Enable then self.Display:Enable() end
     if self.Cooldowns and self.Cooldowns.Enable then self.Cooldowns:Enable() end
     if self.Combat and self.Combat.Enable then self.Combat:Enable() end
+    if KSBT.Parser and KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable then
+        KSBT.Parser.Outgoing:Enable()
+    end
 end
 
 function Core:Disable()
@@ -116,6 +124,9 @@ function Core:Disable()
         Addon:DebugPrint(1, "Core:Disable()")
     end
 
+    if KSBT.Parser and KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Disable then
+        KSBT.Parser.Outgoing:Disable()
+    end
     if self.Combat and self.Combat.Disable then self.Combat:Disable() end
     if self.Cooldowns and self.Cooldowns.Disable then self.Cooldowns:Disable() end
     if self.Display and self.Display.Disable then self.Display:Disable() end
