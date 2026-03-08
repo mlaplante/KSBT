@@ -141,43 +141,91 @@ local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
--- COMBAT_TEXT_UPDATE probe: determine if GetCurrentEventInfo() is accessible
-if C_CombatText and C_CombatText.SetActiveUnit then
-    C_CombatText.SetActiveUnit("player")
-    print("|cff00ccffKSBT-CT|r SetActiveUnit ok")
+-- Probe 1: FCT (Floating Combat Text) globals + hook attempt
+-- Goal: intercept pre-formatted number strings from Blizzard's FCT pipeline
+do
+    print("|cffff9900KSBT-FCT2|r --- FCT hook probe ---")
+    for _, name in ipairs({
+        "CombatText_AddMessage", "CombatText_OnEvent",
+        "CombatText_UpdateDisplayedMessages",
+    }) do
+        print("|cffff9900KSBT-FCT2|r " .. name .. "=" .. type(_G[name]))
+    end
+
+    local cf1 = _G["CombatTextFrame1"]
+    print("|cffff9900KSBT-FCT2|r CombatTextFrame1=" .. tostring(cf1 ~= nil))
+    if cf1 then
+        -- Hook the frame's AddMessage to catch formatted strings
+        local origFM = cf1.AddMessage
+        if origFM then
+            local _fhookN = 0
+            cf1.AddMessage = function(self, text, ...)
+                _fhookN = _fhookN + 1
+                if _fhookN <= 20 then
+                    print("|cffff9900KSBT-FCT2|r FRAME:AM #" .. _fhookN .. " text=" .. tostring(text))
+                end
+                return origFM(self, text, ...)
+            end
+            print("|cffff9900KSBT-FCT2|r Hooked CombatTextFrame1:AddMessage")
+        end
+    end
+
+    -- Hook global CombatText_AddMessage if Lua-accessible
+    if type(CombatText_AddMessage) == "function" then
+        local origGA = CombatText_AddMessage
+        local _ghookN = 0
+        CombatText_AddMessage = function(msg, ...)
+            _ghookN = _ghookN + 1
+            if _ghookN <= 20 then
+                print("|cffff9900KSBT-FCT2|r CTA #" .. _ghookN .. " msg=" .. tostring(msg))
+            end
+            return origGA(msg, ...)
+        end
+        print("|cffff9900KSBT-FCT2|r Hooked CombatText_AddMessage global")
+    end
+    print("|cffff9900KSBT-FCT2|r --- end probe ---")
 end
 
+-- Probe 2: UNIT_COMBAT via RegisterUnitEvent (earlier test may have missed this)
+do
+    local _ucFrame = CreateFrame("Frame")
+    local _ucCount = 0
+    local ok, err = pcall(_ucFrame.RegisterUnitEvent, _ucFrame, "UNIT_COMBAT", "player")
+    print("|cffff9900KSBT-UC|r RegisterUnitEvent('UNIT_COMBAT','player') ok=" .. tostring(ok)
+        .. (ok and "" or " err=" .. tostring(err)))
+
+    _ucFrame:SetScript("OnEvent", function(self, event, ...)
+        if event ~= "UNIT_COMBAT" then return end
+        _ucCount = _ucCount + 1
+        if _ucCount > 20 then return end
+        local unit, action, result, amount = ...
+        print("|cffff9900KSBT-UC|r #" .. _ucCount
+            .. " u=" .. tostring(unit)
+            .. " act=" .. tostring(action)
+            .. " res=" .. tostring(result))
+        if type(amount) == "number" then
+            local ok2, amt = pcall(function() return amount + 0 end)
+            if ok2 then
+                print("|cffff9900KSBT-UC|r  amount=" .. tostring(amt) .. " READABLE!")
+            else
+                print("|cffff9900KSBT-UC|r  amount=SECRET")
+            end
+        end
+    end)
+end
+
+-- CT listener (simplified — amounts are confirmed all-SECRET, keeping just to confirm fires)
+if C_CombatText and C_CombatText.SetActiveUnit then
+    C_CombatText.SetActiveUnit("player")
+end
 local _ctFrame = CreateFrame("Frame")
 local _ctCount = 0
-
 _ctFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
-print("|cff00ccffKSBT-CT|r registered COMBAT_TEXT_UPDATE")
-
 _ctFrame:SetScript("OnEvent", function(self, event, ...)
     if event ~= "COMBAT_TEXT_UPDATE" then return end
     _ctCount = _ctCount + 1
-    if _ctCount > 15 then return end
-
-    -- Dump ALL event args directly (not via GetCurrentEventInfo)
-    local nargs = select("#", ...)
-    print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " nargs=" .. nargs)
-    for i = 1, nargs do
-        local v = select(i, ...)
-        local tv = type(v)
-        if tv == "string" then
-            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] str=" .. v)
-        elseif tv == "number" then
-            local ok, result = pcall(function() return v + 0 end)
-            if ok then
-                print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] num=" .. tostring(result) .. " READABLE!")
-            else
-                print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] num=SECRET")
-            end
-        elseif tv == "boolean" then
-            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] bool=" .. tostring(v))
-        else
-            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] " .. tv)
-        end
+    if _ctCount <= 3 then
+        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. tostring((...)))
     end
 end)
 
