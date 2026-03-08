@@ -20,11 +20,12 @@ local function Debug(level, ...)
 end
 
 -- Returns true if the spell has a real cooldown remaining (ignores GCD, < 1.6s).
+-- Uses GetSpellCooldown (classic API) which returns plain numbers, avoiding the
+-- "secret number" taint that C_Spell.GetSpellCooldown returns in WoW Midnight.
 local function IsOnCooldown(spellId)
-    if not C_Spell or not C_Spell.GetSpellCooldown then return false end
-    local info = C_Spell.GetSpellCooldown(spellId)
-    if not info then return false end
-    local remaining = (info.startTime or 0) + (info.duration or 0) - GetTime()
+    local start, duration = GetSpellCooldown(spellId)
+    if not start or not duration then return false end
+    local remaining = start + duration - GetTime()
     return remaining > 1.6
 end
 
