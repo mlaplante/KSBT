@@ -156,55 +156,27 @@ print("|cff00ccffKSBT-CT|r registered COMBAT_TEXT_UPDATE")
 _ctFrame:SetScript("OnEvent", function(self, event, ...)
     if event ~= "COMBAT_TEXT_UPDATE" then return end
     _ctCount = _ctCount + 1
-    if _ctCount > 20 then return end
+    if _ctCount > 15 then return end
 
-    local evType = ...
-    print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " type=" .. tostring(evType))
-
-    local ok, r1, r2, r3 = pcall(function()
-        local a, b, c = C_CombatText.GetCurrentEventInfo()
-        return type(a), type(b), type(c)
-    end)
-    if not ok then
-        print("|cff00ccffKSBT-CT|r  BLOCKED: " .. tostring(r1))
-        return
-    end
-    print("|cff00ccffKSBT-CT|r  types a=" .. tostring(r1) .. " b=" .. tostring(r2) .. " c=" .. tostring(r3))
-
-    -- Read string 'a' (spell name / target for HEAL, DAMAGE etc.)
-    if r1 == "string" then
-        local ok2, sa = pcall(function()
-            local a = C_CombatText.GetCurrentEventInfo()
-            return a
-        end)
-        if ok2 then
-            print("|cff00ccffKSBT-CT|r  a=" .. tostring(sa))
-        end
-    end
-
-    -- Test numeric 'a' (ENERGIZE, ABSORB amounts)
-    if r1 == "number" then
-        local ok3, aval = pcall(function()
-            local a = C_CombatText.GetCurrentEventInfo()
-            return a + 0
-        end)
-        if ok3 then
-            print("|cff00ccffKSBT-CT|r  a=" .. tostring(aval) .. " READABLE!")
+    -- Dump ALL event args directly (not via GetCurrentEventInfo)
+    local nargs = select("#", ...)
+    print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " nargs=" .. nargs)
+    for i = 1, nargs do
+        local v = select(i, ...)
+        local tv = type(v)
+        if tv == "string" then
+            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] str=" .. v)
+        elseif tv == "number" then
+            local ok, result = pcall(function() return v + 0 end)
+            if ok then
+                print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] num=" .. tostring(result) .. " READABLE!")
+            else
+                print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] num=SECRET")
+            end
+        elseif tv == "boolean" then
+            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] bool=" .. tostring(v))
         else
-            print("|cff00ccffKSBT-CT|r  a=SECRET")
-        end
-    end
-
-    -- Test numeric 'b' — this is likely the heal/damage AMOUNT
-    if r2 == "number" then
-        local ok4, bval = pcall(function()
-            local a, b = C_CombatText.GetCurrentEventInfo()
-            return b + 0
-        end)
-        if ok4 then
-            print("|cff00ccffKSBT-CT|r  b=" .. tostring(bval) .. " READABLE!")
-        else
-            print("|cff00ccffKSBT-CT|r  b=SECRET")
+            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "] " .. tv)
         end
     end
 end)
