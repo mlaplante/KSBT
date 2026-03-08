@@ -31,10 +31,17 @@ local function CheckHealth()
         db.media.sounds and db.media.sounds.lowHealthThreshold
     ) or 20
 
-    local maxHP = UnitHealthMax("player")
-    if not maxHP or maxHP <= 0 then return end
-
-    local pct = (UnitHealth("player") / maxHP) * 100
+    -- UnitHealth/UnitHealthMax return secret numbers in WoW Midnight.
+    -- UnitHealthPercent avoids addon-side arithmetic on protected values.
+    local pct = UnitHealthPercent and UnitHealthPercent("player")
+    if pct == nil then
+        -- Fallback: pcall the division to silently handle secret number taint
+        local maxHP = UnitHealthMax("player")
+        if not maxHP or maxHP <= 0 then return end
+        local ok, result = pcall(function() return (UnitHealth("player") / maxHP) * 100 end)
+        if not ok then return end
+        pct = result
+    end
     if pct > threshold then return end
 
     LowHealth._fired = true
