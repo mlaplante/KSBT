@@ -205,44 +205,41 @@ local function StartEventDiag()
             _meterHitCount = _meterHitCount + 1
             if _meterHitCount > 2 then return end
 
-            print("|cffff9900KSBT-DmgMeter|r === Fire #" .. _meterHitCount .. " " .. event .. " ===")
-            print("|cffff9900KSBT-DmgMeter|r event args: nargs=" .. tostring(select("#",...)) .. " arg1=" .. tostring((...)))
+            local a1, a2 = ...
+            print("|cffff9900KSBT-DmgMeter|r === Fire #" .. _meterHitCount .. " " .. event
+                .. " a1=" .. tostring(a1) .. " a2=" .. tostring(a2) .. " ===")
 
             if not C_DamageMeter then return end
 
-            -- Get the most recent session and call GetCombatSessionFromID on it
             local sessions = C_DamageMeter.GetAvailableCombatSessions()
-            if type(sessions) == "table" and #sessions > 0 then
-                local latest = sessions[#sessions]
-                print("|cffff9900KSBT-DmgMeter|r Latest session: id=" .. tostring(latest and latest.sessionID) .. " name=" .. tostring(latest and latest.name))
+            if type(sessions) ~= "table" or #sessions == 0 then return end
+            local latest = sessions[#sessions]
+            local sid = latest and latest.sessionID
+            if not sid then return end
+            print("|cffff9900KSBT-DmgMeter|r Latest session: id=" .. tostring(sid) .. " name=" .. tostring(latest.name))
 
-                if latest and latest.sessionID then
-                    local sid = latest.sessionID
-                    local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid)
-                    if ok and res ~= nil then
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "):")
-                        DumpTable(res, "  ", 0)
-                    else
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. ") = nil or error: " .. tostring(res))
-                    end
+            local playerGUID = UnitGUID("player")
+            local playerID = UnitCreatureID and UnitCreatureID("player") or 0
 
-                    local ok2, res2 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid)
-                    if ok2 and res2 ~= nil then
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "):")
-                        DumpTable(res2, "  ", 0)
-                    else
-                        print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. ") = nil or error: " .. tostring(res2))
-                    end
+            -- Try all 3 session types
+            for typeName, typeVal in pairs({Overall=0, Current=1, Expired=2}) do
+                local ok, res = pcall(C_DamageMeter.GetCombatSessionFromID, sid, typeVal)
+                if ok and res ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionFromID(" .. sid .. "," .. typeName .. "):")
+                    DumpTable(res, "  ", 0)
                 end
-            end
 
-            -- Also probe Enum.DamageMeterSessionType if it exists
-            if _meterHitCount == 1 then
-                if Enum and Enum.DamageMeterSessionType then
-                    print("|cffff9900KSBT-DmgMeter|r Enum.DamageMeterSessionType:")
-                    DumpTable(Enum.DamageMeterSessionType, "  ", 0)
-                else
-                    print("|cffff9900KSBT-DmgMeter|r Enum.DamageMeterSessionType does not exist")
+                -- Try source with and without GUID
+                local ok2, res2 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal)
+                if ok2 and res2 ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") no GUID:")
+                    DumpTable(res2, "  ", 0)
+                end
+
+                local ok3, res3 = pcall(C_DamageMeter.GetCombatSessionSourceFromID, sid, typeVal, playerGUID, playerID)
+                if ok3 and res3 ~= nil then
+                    print("|cffff9900KSBT-DmgMeter|r GetCombatSessionSourceFromID(" .. sid .. "," .. typeName .. ") with playerGUID:")
+                    DumpTable(res3, "  ", 0)
                 end
             end
         end
