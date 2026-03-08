@@ -169,64 +169,41 @@ local function ProbeFCT()
     print("|cffff9900KSBT-FCT|r --- end C_CombatText probe ---")
 end
 
--- Set player as active unit for C_CombatText and register for the event
--- via both frame:RegisterEvent and EventRegistry
+-- Set player as active unit for C_CombatText
 if C_CombatText and C_CombatText.SetActiveUnit then
     C_CombatText.SetActiveUnit("player")
-    print("|cff00ccffKSBT-CT|r C_CombatText.SetActiveUnit('player') called, activeUnit=" .. tostring(C_CombatText.GetActiveUnit and C_CombatText.GetActiveUnit()))
-elseif CombatTextSetActiveUnit then
-    CombatTextSetActiveUnit("player")
-    print("|cff00ccffKSBT-CT|r CombatTextSetActiveUnit('player') called")
+    print("|cff00ccffKSBT-CT|r C_CombatText.SetActiveUnit('player') ok, activeUnit=" .. tostring(C_CombatText.GetActiveUnit and C_CombatText.GetActiveUnit()))
 end
 
 local _ctFrame = CreateFrame("Frame")
 local _ctCount = 0
 
-local function OnCombatTextEvent(event, ...)
-    _ctCount = _ctCount + 1
-    if _ctCount <= 20 then
-        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. tostring(event)
-            .. " nargs=" .. tostring(select("#",...)))
-        for i = 1, select("#",...) do
-            print("|cff00ccffKSBT-CT|r  arg[" .. i .. "]=" .. tostring(select(i,...)))
-        end
-        -- Try both APIs
-        if C_CombatText and C_CombatText.GetCurrentEventInfo then
-            local ok, a, b, c, d, e = pcall(C_CombatText.GetCurrentEventInfo)
-            print("|cff00ccffKSBT-CT|r  C_CombatText.GetCurrentEventInfo: ok=" .. tostring(ok)
-                .. " a=" .. tostring(a) .. " b=" .. tostring(b)
-                .. " c=" .. tostring(c) .. " d=" .. tostring(d)
-                .. " e=" .. tostring(e))
-        end
-        if GetCurrentCombatTextEventInfo then
-            local ok2, a2, b2, c2, d2, e2 = pcall(GetCurrentCombatTextEventInfo)
-            print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo: ok=" .. tostring(ok2)
-                .. " a=" .. tostring(a2) .. " b=" .. tostring(b2)
-                .. " c=" .. tostring(c2) .. " d=" .. tostring(d2))
-        end
-    end
-end
+_ctFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
+print("|cff00ccffKSBT-CT|r registered COMBAT_TEXT_UPDATE")
 
--- Try frame:RegisterEvent
-for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE","COMBAT_TEXT_EVENT"}) do
-    local ok = pcall(function() _ctFrame:RegisterEvent(evName) end)
-    if ok then print("|cff00ccffKSBT-CT|r registered " .. evName .. " via frame") end
-end
 _ctFrame:SetScript("OnEvent", function(self, event, ...)
-    OnCombatTextEvent(event, ...)
-end)
+    if event ~= "COMBAT_TEXT_UPDATE" then return end
+    _ctCount = _ctCount + 1
+    if _ctCount > 30 then return end
 
--- Also try EventRegistry
-if EventRegistry then
-    for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE"}) do
-        local ok = pcall(function()
-            EventRegistry:RegisterFrameEventAndCallback(evName, function(_, ev, ...)
-                OnCombatTextEvent(ev, ...)
-            end, _ctFrame)
-        end)
-        if ok then print("|cff00ccffKSBT-CT|r registered " .. evName .. " via EventRegistry") end
+    local evType = ...  -- sub-event type, e.g. "HEAL", "DAMAGE", "PERIODIC_HEAL"
+    print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " type=" .. tostring(evType))
+
+    -- Retrieve the actual event data
+    local a, b, c, d, e
+    if C_CombatText and C_CombatText.GetCurrentEventInfo then
+        a, b, c, d, e = C_CombatText.GetCurrentEventInfo()
+        print("|cff00ccffKSBT-CT|r  C_CombatText.GetCurrentEventInfo() ="
+            .. " a=" .. tostring(a) .. " b=" .. tostring(b)
+            .. " c=" .. tostring(c) .. " d=" .. tostring(d) .. " e=" .. tostring(e))
     end
-end
+    if GetCurrentCombatTextEventInfo then
+        local a2, b2, c2, d2, e2 = GetCurrentCombatTextEventInfo()
+        print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo() ="
+            .. " a=" .. tostring(a2) .. " b=" .. tostring(b2)
+            .. " c=" .. tostring(c2) .. " d=" .. tostring(d2) .. " e=" .. tostring(e2))
+    end
+end)
 
 local function StartEventDiag()
     if _diagDone then return end
