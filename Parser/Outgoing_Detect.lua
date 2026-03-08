@@ -169,31 +169,64 @@ local function ProbeFCT()
     print("|cffff9900KSBT-FCT|r --- end C_CombatText probe ---")
 end
 
--- Listen for COMBAT_TEXT_UPDATE and any C_CombatText-related events
+-- Set player as active unit for C_CombatText and register for the event
+-- via both frame:RegisterEvent and EventRegistry
+if C_CombatText and C_CombatText.SetActiveUnit then
+    C_CombatText.SetActiveUnit("player")
+    print("|cff00ccffKSBT-CT|r C_CombatText.SetActiveUnit('player') called, activeUnit=" .. tostring(C_CombatText.GetActiveUnit and C_CombatText.GetActiveUnit()))
+elseif CombatTextSetActiveUnit then
+    CombatTextSetActiveUnit("player")
+    print("|cff00ccffKSBT-CT|r CombatTextSetActiveUnit('player') called")
+end
+
 local _ctFrame = CreateFrame("Frame")
 local _ctCount = 0
-_ctFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
--- Also try the new-style event name
-for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE"}) do
-    pcall(function() _ctFrame:RegisterEvent(evName) end)
-end
-_ctFrame:SetScript("OnEvent", function(self, event, ...)
+
+local function OnCombatTextEvent(event, ...)
     _ctCount = _ctCount + 1
     if _ctCount <= 20 then
-        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. event
+        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. tostring(event)
             .. " nargs=" .. tostring(select("#",...)))
         for i = 1, select("#",...) do
             print("|cff00ccffKSBT-CT|r  arg[" .. i .. "]=" .. tostring(select(i,...)))
         end
-        if GetCurrentCombatTextEventInfo then
-            local ok, a, b, c, d, e, f = pcall(GetCurrentCombatTextEventInfo)
-            print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo: ok=" .. tostring(ok)
+        -- Try both APIs
+        if C_CombatText and C_CombatText.GetCurrentEventInfo then
+            local ok, a, b, c, d, e = pcall(C_CombatText.GetCurrentEventInfo)
+            print("|cff00ccffKSBT-CT|r  C_CombatText.GetCurrentEventInfo: ok=" .. tostring(ok)
                 .. " a=" .. tostring(a) .. " b=" .. tostring(b)
                 .. " c=" .. tostring(c) .. " d=" .. tostring(d)
-                .. " e=" .. tostring(e) .. " f=" .. tostring(f))
+                .. " e=" .. tostring(e))
+        end
+        if GetCurrentCombatTextEventInfo then
+            local ok2, a2, b2, c2, d2, e2 = pcall(GetCurrentCombatTextEventInfo)
+            print("|cff00ccffKSBT-CT|r  GetCurrentCombatTextEventInfo: ok=" .. tostring(ok2)
+                .. " a=" .. tostring(a2) .. " b=" .. tostring(b2)
+                .. " c=" .. tostring(c2) .. " d=" .. tostring(d2))
         end
     end
+end
+
+-- Try frame:RegisterEvent
+for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE","COMBAT_TEXT_EVENT"}) do
+    local ok = pcall(function() _ctFrame:RegisterEvent(evName) end)
+    if ok then print("|cff00ccffKSBT-CT|r registered " .. evName .. " via frame") end
+end
+_ctFrame:SetScript("OnEvent", function(self, event, ...)
+    OnCombatTextEvent(event, ...)
 end)
+
+-- Also try EventRegistry
+if EventRegistry then
+    for _, evName in ipairs({"COMBAT_TEXT_UPDATE","UNIT_COMBAT_TEXT","PLAYER_COMBAT_TEXT_UPDATE"}) do
+        local ok = pcall(function()
+            EventRegistry:RegisterFrameEventAndCallback(evName, function(_, ev, ...)
+                OnCombatTextEvent(ev, ...)
+            end, _ctFrame)
+        end)
+        if ok then print("|cff00ccffKSBT-CT|r registered " .. evName .. " via EventRegistry") end
+    end
+end
 
 local function StartEventDiag()
     if _diagDone then return end
