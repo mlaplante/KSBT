@@ -32,14 +32,13 @@ local function Emit(evt)
     end
 end
 
--- isCrit may be a secret boolean in restricted content; default false on error.
 local function SafeBool(val)
     local ok, b = pcall(function() return val and true or false end)
     return ok and b or false
 end
 
 local function Normalize(info)
-    local subevent   = info[2]
+    local subevent    = info[2]
     local sourceFlags = info[6]
     if not IsPlayerSource(sourceFlags) then return nil end
 
@@ -56,8 +55,8 @@ local function Normalize(info)
     if subevent == "SWING_DAMAGE" then
         if not (db.outgoing.damage and db.outgoing.damage.enabled) then return nil end
         ev.kind       = "damage"
-        ev.amount     = info[12]              -- raw; may be secret in restricted content
-        ev.schoolMask = tonumber(info[14]) or 1  -- school is always a plain number
+        ev.amount     = info[12]
+        ev.schoolMask = tonumber(info[14]) or 1
         ev.spellId    = 6603
         ev.spellName  = "Auto Attack"
         ev.isAuto     = true
@@ -70,7 +69,7 @@ local function Normalize(info)
         ev.spellId    = spellId
         ev.spellName  = info[13]
         ev.schoolMask = tonumber(info[14]) or 1
-        ev.amount     = info[15]              -- raw; may be secret
+        ev.amount     = info[15]
         ev.isCrit     = SafeBool(info[21])
         ev.isAuto     = (subevent == "RANGE_DAMAGE") or (spellId == 75)
 
@@ -80,8 +79,8 @@ local function Normalize(info)
         ev.spellId    = tonumber(info[12])
         ev.spellName  = info[13]
         ev.schoolMask = tonumber(info[14]) or 1
-        ev.amount     = info[15]              -- raw; may be secret
-        ev.overheal   = info[16]              -- raw; may be secret
+        ev.amount     = info[15]
+        ev.overheal   = info[16]
         ev.isCrit     = SafeBool(info[18])
         ev.isAuto     = false
 
@@ -89,7 +88,6 @@ local function Normalize(info)
         return nil
     end
 
-    -- Outgoing tab gating (only checks that don't require amount arithmetic)
     if ev.kind == "damage" then
         local dmg = db.outgoing.damage or {}
         if not dmg.showTargets then ev.targetName = nil end
@@ -107,38 +105,7 @@ local function Normalize(info)
     return ev
 end
 
-------------------------------------------------------------------------
--- CLEU registration
---
--- COMBAT_LOG_EVENT_UNFILTERED is forbidden via frame:RegisterEvent while
--- InCombatLockdown() is true (ADDON_ACTION_FORBIDDEN). Strategy:
---   • Try to register immediately (succeeds if not in combat).
---   • Also listen to PLAYER_REGEN_ENABLED so we register as soon as
---     the player leaves combat (handles /reload-in-combat and late Enable).
-------------------------------------------------------------------------
-local f = CreateFrame("Frame")
-Outgoing._frame = f
-Outgoing._enabled      = false
-Outgoing._cleuRegistered = false
-
-local function _tryRegisterCLEU()
-    if Outgoing._cleuRegistered then return end
-    if InCombatLockdown() then return end
-    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    f:UnregisterEvent("PLAYER_REGEN_ENABLED")
-    Outgoing._cleuRegistered = true
-    DebugPrint("CLEU registered")
-end
-
--- PLAYER_REGEN_ENABLED is not protected; safe to register at any time.
-f:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-f:SetScript("OnEvent", function(self, event)
-    if event == "PLAYER_REGEN_ENABLED" then
-        _tryRegisterCLEU()
-        return
-    end
-    -- COMBAT_LOG_EVENT_UNFILTERED
+local function _handleCLEU()
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
     if #info == 0 then return end
@@ -148,15 +115,44 @@ f:SetScript("OnEvent", function(self, event)
         return
     end
     if evtOrErr then Emit(evtOrErr) end
-end)
+end
 
--- Attempt registration now; will succeed if loaded outside combat.
-_tryRegisterCLEU()
+------------------------------------------------------------------------
+-- Event registration
+--
+-- COMBAT_LOG_EVENT_UNFILTERED is permanently blocked for addon code in
+-- WoW Midnight (ADDON_ACTION_FORBIDDEN, regardless of combat state).
+--
+-- COMBAT_LOG_EVENT is the filtered variant (player-involved events only).
+-- We try to register it; if also forbidden, fall back silently — the
+-- Incoming parser handles incoming events via UNIT_COMBAT independently.
+------------------------------------------------------------------------
+local f = CreateFrame("Frame")
+Outgoing._frame   = f
+Outgoing._enabled = false
+
+local _registered = false
+local function _tryRegister()
+    if _registered then return end
+    local ok = pcall(f.RegisterEvent, f, "COMBAT_LOG_EVENT")
+    if ok then
+        _registered = true
+        DebugPrint("COMBAT_LOG_EVENT registered OK")
+    else
+        -- Also forbidden — outgoing via CLEU unavailable on this build.
+        print("|cffff9900KSBT-Outgoing|r COMBAT_LOG_EVENT also forbidden; outgoing CLEU unavailable.")
+    end
+end
+
+f:SetScript("OnEvent", function(self, event)
+    if event ~= "COMBAT_LOG_EVENT" then return end
+    _handleCLEU()
+end)
 
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
-    _tryRegisterCLEU()  -- no-op if already registered or if in combat (REGEN_ENABLED covers it)
+    _tryRegister()
 end
 
 function Outgoing:Disable()
