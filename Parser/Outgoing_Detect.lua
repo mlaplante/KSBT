@@ -104,15 +104,13 @@ local function Normalize(info)
     return ev
 end
 
--- Register CLEU at file-load time (before PLAYER_LOGIN restricted context).
--- Processing is gated by Outgoing._enabled; the frame is always registered
--- but does nothing unless Enable() has been called.
-local f = CreateFrame("Frame")
-Outgoing._frame = f
+-- COMBAT_LOG_EVENT_UNFILTERED cannot be registered via frame:RegisterEvent
+-- in WoW Midnight (ADDON_ACTION_FORBIDDEN at any execution time, including load).
+-- Use EventRegistry:RegisterCallback which dispatches through Blizzard's
+-- internal event hub without requiring addon code to call RegisterEvent.
 Outgoing._enabled = false
 
-f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-f:SetScript("OnEvent", function(self, event)
+local function _handleCLEU()
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
     if #info == 0 then return end
@@ -122,14 +120,18 @@ f:SetScript("OnEvent", function(self, event)
         return
     end
     if evtOrErr then Emit(evtOrErr) end
-end)
+end
 
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
+    EventRegistry:RegisterCallback(
+        "COMBAT_LOG_EVENT_UNFILTERED", _handleCLEU, Outgoing)
 end
 
 function Outgoing:Disable()
     if not self._enabled then return end
     self._enabled = false
+    EventRegistry:UnregisterCallback(
+        "COMBAT_LOG_EVENT_UNFILTERED", Outgoing)
 end
