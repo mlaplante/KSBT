@@ -32,9 +32,14 @@ local function Emit(evt)
     end
 end
 
+-- isCrit may be a secret boolean in restricted content; default false on error.
+local function SafeBool(val)
+    local ok, b = pcall(function() return val and true or false end)
+    return ok and b or false
+end
+
 local function Normalize(info)
-    local ts       = info[1]
-    local subevent = info[2]
+    local subevent   = info[2]
     local sourceFlags = info[6]
     if not IsPlayerSource(sourceFlags) then return nil end
 
@@ -42,7 +47,7 @@ local function Normalize(info)
     if not db or not db.outgoing then return nil end
 
     local ev = {
-        timestamp  = ts,
+        timestamp  = info[1],
         sourceName = info[5],
         targetName = info[9],
         destFlags  = info[10],
@@ -51,12 +56,12 @@ local function Normalize(info)
     if subevent == "SWING_DAMAGE" then
         if not (db.outgoing.damage and db.outgoing.damage.enabled) then return nil end
         ev.kind       = "damage"
-        ev.amount     = tonumber(info[12]) or 0
-        ev.schoolMask = tonumber(info[14]) or 1
+        ev.amount     = info[12]              -- raw; may be secret in restricted content
+        ev.schoolMask = tonumber(info[14]) or 1  -- school is always a plain number
         ev.spellId    = 6603
         ev.spellName  = "Auto Attack"
         ev.isAuto     = true
-        ev.isCrit     = info[18] and true or false
+        ev.isCrit     = SafeBool(info[18])
 
     elseif subevent == "RANGE_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" then
         if not (db.outgoing.damage and db.outgoing.damage.enabled) then return nil end
@@ -65,8 +70,8 @@ local function Normalize(info)
         ev.spellId    = spellId
         ev.spellName  = info[13]
         ev.schoolMask = tonumber(info[14]) or 1
-        ev.amount     = tonumber(info[15]) or 0
-        ev.isCrit     = info[20] and true or false
+        ev.amount     = info[15]              -- raw; may be secret
+        ev.isCrit     = SafeBool(info[21])
         ev.isAuto     = (subevent == "RANGE_DAMAGE") or (spellId == 75)
 
     elseif subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL" then
@@ -75,16 +80,16 @@ local function Normalize(info)
         ev.spellId    = tonumber(info[12])
         ev.spellName  = info[13]
         ev.schoolMask = tonumber(info[14]) or 1
-        ev.amount     = tonumber(info[15]) or 0
-        ev.overheal   = tonumber(info[16]) or 0
-        ev.isCrit     = info[18] and true or false
+        ev.amount     = info[15]              -- raw; may be secret
+        ev.overheal   = info[16]              -- raw; may be secret
+        ev.isCrit     = SafeBool(info[18])
         ev.isAuto     = false
 
     else
         return nil
     end
 
-    -- Outgoing tab gating
+    -- Outgoing tab gating (only checks that don't require amount arithmetic)
     if ev.kind == "damage" then
         local dmg = db.outgoing.damage or {}
         if not dmg.showTargets then ev.targetName = nil end
@@ -95,43 +100,66 @@ local function Normalize(info)
         end
     else
         local heal = db.outgoing.healing or {}
-        if not heal.showOverheal then ev.overheal = 0 end
+        if not heal.showOverheal then ev.overheal = nil end
     end
 
-    DebugPrint("Normalize OK: kind=" .. tostring(ev.kind)
-        .. " amount=" .. tostring(ev.amount)
-        .. " spell=" .. tostring(ev.spellName))
+    DebugPrint("Normalize OK: kind=" .. tostring(ev.kind) .. " spell=" .. tostring(ev.spellName))
     return ev
 end
 
--- COMBAT_LOG_EVENT_UNFILTERED cannot be registered via frame:RegisterEvent
--- in WoW Midnight (ADDON_ACTION_FORBIDDEN at any execution time, including load).
--- Use EventRegistry:RegisterCallback which dispatches through Blizzard's
--- internal event hub without requiring addon code to call RegisterEvent.
-Outgoing._enabled = false
+------------------------------------------------------------------------
+-- CLEU registration
+--
+-- COMBAT_LOG_EVENT_UNFILTERED is forbidden via frame:RegisterEvent while
+-- InCombatLockdown() is true (ADDON_ACTION_FORBIDDEN). Strategy:
+--   • Try to register immediately (succeeds if not in combat).
+--   • Also listen to PLAYER_REGEN_ENABLED so we register as soon as
+--     the player leaves combat (handles /reload-in-combat and late Enable).
+------------------------------------------------------------------------
+local f = CreateFrame("Frame")
+Outgoing._frame = f
+Outgoing._enabled      = false
+Outgoing._cleuRegistered = false
 
-local function _handleCLEU()
+local function _tryRegisterCLEU()
+    if Outgoing._cleuRegistered then return end
+    if InCombatLockdown() then return end
+    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    f:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    Outgoing._cleuRegistered = true
+    DebugPrint("CLEU registered")
+end
+
+-- PLAYER_REGEN_ENABLED is not protected; safe to register at any time.
+f:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+f:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        _tryRegisterCLEU()
+        return
+    end
+    -- COMBAT_LOG_EVENT_UNFILTERED
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
     if #info == 0 then return end
     local ok, evtOrErr = pcall(Normalize, info)
     if not ok then
-        print("|cffff0000KSBT-Outgoing|r Normalize ERROR: " .. tostring(evtOrErr))
+        DebugPrint("Normalize ERROR: " .. tostring(evtOrErr))
         return
     end
     if evtOrErr then Emit(evtOrErr) end
-end
+end)
+
+-- Attempt registration now; will succeed if loaded outside combat.
+_tryRegisterCLEU()
 
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
-    EventRegistry:RegisterCallback(
-        "COMBAT_LOG_EVENT_UNFILTERED", _handleCLEU, Outgoing)
+    _tryRegisterCLEU()  -- no-op if already registered or if in combat (REGEN_ENABLED covers it)
 end
 
 function Outgoing:Disable()
     if not self._enabled then return end
     self._enabled = false
-    EventRegistry:UnregisterCallback(
-        "COMBAT_LOG_EVENT_UNFILTERED", Outgoing)
 end

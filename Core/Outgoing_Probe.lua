@@ -45,6 +45,18 @@ local function IsDummyTarget(destFlags)
        and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
 end
 
+-- In restricted content (M+, raids) CLEU amounts are "secret numbers":
+-- arithmetic on them throws, but tostring() works via metamethod.
+-- Returns: plainValue (number), isSecret (bool)
+local function TryReadAmount(raw)
+    if raw == nil then return 0, false end
+    local ok, val = pcall(function() return raw + 0 end)
+    if ok and type(val) == "number" then
+        return val, false
+    end
+    return raw, true  -- secret: caller must avoid arithmetic, use tostring()
+end
+
 local function MergeKey(kind, spellId, area)
     return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
 end
@@ -300,47 +312,53 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
     local kind = evt.kind
     if kind ~= "damage" and kind ~= "heal" then return end
 
-    local amt = tonumber(evt.amount) or 0
-    if amt <= 0 then return end
-
     if kind == "damage" then
         local conf = prof.damage
         if not conf or not conf.enabled then return end
 
-        -- Auto-attack filtering.
+        -- Auto-attack filtering (no amount needed).
         if evt.isAuto == true then
             local mode = tostring(conf.autoAttackMode or "Show All")
             if mode == "Hide" then return end
             if mode == "Show Only Crits" and evt.isCrit ~= true then return end
         end
 
-        local minT = tonumber(conf.minThreshold) or 0
-        if amt < minT then return end
+        local amt, isSecret = TryReadAmount(evt.amount)
 
-        -- Spam control checks (throttling + dummy suppression)
-        local spamConf = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
-        local throttle = spamConf and spamConf.throttling
-        if throttle then
-            local globalMin = tonumber(throttle.minDamage) or 0
-            if globalMin > 0 and amt < globalMin then return end
+        -- When readable: apply min-threshold and spam controls.
+        if not isSecret then
+            if amt <= 0 then return end
 
-            local hideAutoBelow = tonumber(throttle.hideAutoBelow) or 0
-            if evt.isAuto and hideAutoBelow > 0 and amt < hideAutoBelow then return end
+            local minT = tonumber(conf.minThreshold) or 0
+            if amt < minT then return end
+
+            local spamConf = KSBT.db.profile.spamControl
+            local throttle = spamConf and spamConf.throttling
+            if throttle then
+                local globalMin = tonumber(throttle.minDamage) or 0
+                if globalMin > 0 and amt < globalMin then return end
+
+                local hideAutoBelow = tonumber(throttle.hideAutoBelow) or 0
+                if evt.isAuto and hideAutoBelow > 0 and amt < hideAutoBelow then return end
+            end
+
+            if spamConf and spamConf.suppressDummyDamage then
+                if IsDummyTarget(evt.destFlags) then return end
+            end
         end
 
-        -- Suppress training dummy damage
-        if spamConf and spamConf.suppressDummyDamage then
-            if IsDummyTarget(evt.destFlags) then return end
-        end
+        -- Build display text.
+        -- Secret amounts: tostring() works via Blizzard metamethod; skip spell/target append.
+        local baseText = isSecret and tostring(evt.amount) or tostring(math.floor(amt + 0.5))
+        local text = baseText
 
-        local area = conf.scrollArea or "Outgoing"
-        local text = tostring(math.floor(amt + 0.5))
-
-        if prof.showSpellNames and evt.isAuto ~= true and type(evt.spellName) == "string" and evt.spellName ~= "" then
+        if not isSecret and prof.showSpellNames and evt.isAuto ~= true
+        and type(evt.spellName) == "string" and evt.spellName ~= "" then
             text = text .. " " .. evt.spellName
         end
 
-        if conf.showTargets and type(evt.targetName) == "string" and evt.targetName ~= "" then
+        if not isSecret and conf.showTargets
+        and type(evt.targetName) == "string" and evt.targetName ~= "" then
             text = text .. " -> " .. evt.targetName
         end
 
@@ -354,57 +372,62 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         }
         local color
         if meta.isCrit then
-            color = {r = 1.00, g = 0.65, b = 0.00}  -- orange for damage crits
+            color = {r = 1.00, g = 0.65, b = 0.00}
             text = text .. "!"
         else
-            color = {r = 1.00, g = 0.25, b = 0.25}  -- red for normal damage
+            color = {r = 1.00, g = 0.25, b = 0.25}
         end
 
-        -- School color override for non-crit damage (when school colors are enabled)
-        if not meta.isCrit then
-            local prof2 = KSBT.db and KSBT.db.profile
-            if prof2 and prof2.incoming and prof2.incoming.useSchoolColors then
+        if not meta.isCrit and not isSecret then
+            local prof2 = KSBT.db.profile
+            if prof2.incoming and prof2.incoming.useSchoolColors then
                 local sc = KSBT.SchoolColorFromMask and KSBT.SchoolColorFromMask(evt.schoolMask)
                 if sc then color = sc end
             end
         end
 
-        local baseText = tostring(math.floor(amt + 0.5))
-        EmitOrMerge(kind, evt.spellId, area, baseText, text, color, meta, isReplay)
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
 
-    else
+    else  -- heal
         local conf = prof.healing
         if not conf or not conf.enabled then return end
 
-        local over = tonumber(evt.overheal) or 0
-        if over < 0 then over = 0 end
+        local amt, isSecret   = TryReadAmount(evt.amount)
+        local over, overSecret = TryReadAmount(evt.overheal)
 
-        -- What we display is what we threshold against.
-        local displayAmt = amt
-        if not conf.showOverheal then
-            displayAmt = amt - over
+        -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
+        local displayAmt
+        if not isSecret and not overSecret then
+            if over < 0 then over = 0 end
+            displayAmt = conf.showOverheal and amt or (amt - over)
+            if displayAmt <= 0 then return end
+
+            local minT = tonumber(conf.minThreshold) or 0
+            if displayAmt < minT then return end
+
+            local spamConf2 = KSBT.db.profile.spamControl
+            local throttle2 = spamConf2 and spamConf2.throttling
+            if throttle2 then
+                local globalMin = tonumber(throttle2.minHealing) or 0
+                if globalMin > 0 and displayAmt < globalMin then return end
+            end
         end
-        if displayAmt <= 0 then return end
+        -- Secret: skip all arithmetic checks; trust CLEU that an event occurred.
 
-        local minT = tonumber(conf.minThreshold) or 0
-        if displayAmt < minT then return end
-
-        -- Global throttling (spamControl.throttling)
-        local spamConf2 = KSBT.db and KSBT.db.profile and KSBT.db.profile.spamControl
-        local throttle2 = spamConf2 and spamConf2.throttling
-        if throttle2 then
-            local globalMin = tonumber(throttle2.minHealing) or 0
-            if globalMin > 0 and displayAmt < globalMin then return end
+        local baseText
+        if isSecret or overSecret then
+            -- Secret value: tostring() works; overheal arithmetic skipped.
+            baseText = tostring(evt.amount)
+        else
+            baseText = tostring(math.floor(displayAmt + 0.5))
         end
-
-        local area = conf.scrollArea or "Outgoing"
-        local text = tostring(math.floor(displayAmt + 0.5))
+        local text = baseText
 
         if prof.showSpellNames and type(evt.spellName) == "string" and evt.spellName ~= "" then
             text = text .. " " .. evt.spellName
         end
 
-        if conf.showOverheal and over > 0 then
+        if not isSecret and not overSecret and conf.showOverheal and over > 0 then
             text = text .. " (OH " .. tostring(math.floor(over + 0.5)) .. ")"
         end
 
@@ -417,13 +440,12 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         }
         local color
         if meta.isCrit then
-            color = {r = 0.40, g = 1.00, b = 0.80}  -- cyan for healing crits
+            color = {r = 0.40, g = 1.00, b = 0.80}
             text = text .. "!"
         else
-            color = {r = 0.20, g = 1.00, b = 0.20}  -- green for normal healing
+            color = {r = 0.20, g = 1.00, b = 0.20}
         end
 
-        local baseText = tostring(math.floor(displayAmt + 0.5))
-        EmitOrMerge(kind, evt.spellId, area, baseText, text, color, meta, isReplay)
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
     end
 end
