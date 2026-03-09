@@ -104,11 +104,14 @@ local function Normalize(info)
     return ev
 end
 
--- Frame-based CLEU listener (works on all clients including Midnight)
+-- Register CLEU at file-load time (before PLAYER_LOGIN restricted context).
+-- Processing is gated by Outgoing._enabled; the frame is always registered
+-- but does nothing unless Enable() has been called.
 local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
+f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 f:SetScript("OnEvent", function(self, event)
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
@@ -124,11 +127,9 @@ end)
 function Outgoing:Enable()
     if self._enabled then return end
     self._enabled = true
-    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
 
 function Outgoing:Disable()
     if not self._enabled then return end
     self._enabled = false
-    f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
