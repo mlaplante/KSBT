@@ -1,23 +1,12 @@
 local ADDON_NAME, KSBT = ...
-print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: file loading...")
 
 KSBT.Parser = KSBT.Parser or {}
 KSBT.Parser.Outgoing = KSBT.Parser.Outgoing or {}
 local Outgoing = KSBT.Parser.Outgoing
-print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: table created, defining functions...")
 
 local band = bit.band
-print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: bit.band=" .. tostring(band))
 local AFFILIATION_MINE = COMBATLOG_OBJECT_AFFILIATION_MINE or 0x00000001
 local TYPE_PLAYER      = COMBATLOG_OBJECT_TYPE_PLAYER      or 0x00000400
-
-local function Debug(level, ...)
-    if KSBT.Core and KSBT.Core.Debug then
-        KSBT.Core:Debug(level, ...)
-    elseif KSBT.Debug then
-        KSBT.Debug(level, ...)
-    end
-end
 
 local function DebugPrint(msg)
     local db = KSBT.db and KSBT.db.profile
@@ -47,32 +36,16 @@ local function Normalize(info)
     local ts       = info[1]
     local subevent = info[2]
     local sourceFlags = info[6]
-    if not IsPlayerSource(sourceFlags) then
-        -- Only log spell/swing events to avoid spam
-        if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE"
-        or subevent == "SPELL_HEAL" or subevent == "SPELL_PERIODIC_HEAL"
-        or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
-            DebugPrint("IsPlayerSource FAILED for " .. tostring(subevent)
-                .. " flags=" .. tostring(sourceFlags))
-        end
-        return nil
-    end
-
-    DebugPrint("IsPlayerSource OK: " .. tostring(subevent)
-        .. " flags=" .. tostring(sourceFlags))
+    if not IsPlayerSource(sourceFlags) then return nil end
 
     local db = DB()
-    if not db or not db.outgoing then
-        DebugPrint("DB check FAILED: db=" .. tostring(db ~= nil)
-            .. " outgoing=" .. tostring(db and db.outgoing ~= nil))
-        return nil
-    end
+    if not db or not db.outgoing then return nil end
 
     local ev = {
         timestamp  = ts,
         sourceName = info[5],
         targetName = info[9],
-        destFlags  = info[10],   -- destination unit type flags (for dummy detection)
+        destFlags  = info[10],
     }
 
     if subevent == "SWING_DAMAGE" then
@@ -111,13 +84,10 @@ local function Normalize(info)
         return nil
     end
 
-    -- Outgoing tab gating relevant to probe visibility
+    -- Outgoing tab gating
     if ev.kind == "damage" then
         local dmg = db.outgoing.damage or {}
-        if not dmg.showTargets then
-            ev.targetName = nil
-        end
-
+        if not dmg.showTargets then ev.targetName = nil end
         if ev.isAuto then
             local mode = dmg.autoAttackMode or "Show All"
             if mode == "Hide" then return nil end
@@ -125,9 +95,7 @@ local function Normalize(info)
         end
     else
         local heal = db.outgoing.healing or {}
-        if not heal.showOverheal then
-            ev.overheal = 0
-        end
+        if not heal.showOverheal then ev.overheal = 0 end
     end
 
     DebugPrint("Normalize OK: kind=" .. tostring(ev.kind)
@@ -136,192 +104,31 @@ local function Normalize(info)
     return ev
 end
 
--- Frame wiring (no AceEvent)
+-- Frame-based CLEU listener (works on all clients including Midnight)
 local f = CreateFrame("Frame")
 Outgoing._frame = f
 Outgoing._enabled = false
 
--- Probe 1: FCT (Floating Combat Text) globals + hook attempt
--- Goal: intercept pre-formatted number strings from Blizzard's FCT pipeline
-do
-    print("|cffff9900KSBT-FCT2|r --- FCT hook probe ---")
-    for _, name in ipairs({
-        "CombatText_AddMessage", "CombatText_OnEvent",
-        "CombatText_UpdateDisplayedMessages",
-    }) do
-        print("|cffff9900KSBT-FCT2|r " .. name .. "=" .. type(_G[name]))
-    end
-
-    local cf1 = _G["CombatTextFrame1"]
-    print("|cffff9900KSBT-FCT2|r CombatTextFrame1=" .. tostring(cf1 ~= nil))
-    if cf1 then
-        -- Hook the frame's AddMessage to catch formatted strings
-        local origFM = cf1.AddMessage
-        if origFM then
-            local _fhookN = 0
-            cf1.AddMessage = function(self, text, ...)
-                _fhookN = _fhookN + 1
-                if _fhookN <= 20 then
-                    print("|cffff9900KSBT-FCT2|r FRAME:AM #" .. _fhookN .. " text=" .. tostring(text))
-                end
-                return origFM(self, text, ...)
-            end
-            print("|cffff9900KSBT-FCT2|r Hooked CombatTextFrame1:AddMessage")
-        end
-    end
-
-    -- Hook global CombatText_AddMessage if Lua-accessible
-    if type(CombatText_AddMessage) == "function" then
-        local origGA = CombatText_AddMessage
-        local _ghookN = 0
-        CombatText_AddMessage = function(msg, ...)
-            _ghookN = _ghookN + 1
-            if _ghookN <= 20 then
-                print("|cffff9900KSBT-FCT2|r CTA #" .. _ghookN .. " msg=" .. tostring(msg))
-            end
-            return origGA(msg, ...)
-        end
-        print("|cffff9900KSBT-FCT2|r Hooked CombatText_AddMessage global")
-    end
-    print("|cffff9900KSBT-FCT2|r --- end probe ---")
-end
-
--- Probe 2: UNIT_COMBAT via RegisterUnitEvent (earlier test may have missed this)
-do
-    local _ucFrame = CreateFrame("Frame")
-    local _ucCount = 0
-    local ok, err = pcall(_ucFrame.RegisterUnitEvent, _ucFrame, "UNIT_COMBAT", "player")
-    print("|cffff9900KSBT-UC|r RegisterUnitEvent('UNIT_COMBAT','player') ok=" .. tostring(ok)
-        .. (ok and "" or " err=" .. tostring(err)))
-
-    _ucFrame:SetScript("OnEvent", function(self, event, ...)
-        if event ~= "UNIT_COMBAT" then return end
-        _ucCount = _ucCount + 1
-        if _ucCount > 20 then return end
-        local unit, action, result, amount = ...
-        print("|cffff9900KSBT-UC|r #" .. _ucCount
-            .. " u=" .. tostring(unit)
-            .. " act=" .. tostring(action)
-            .. " res=" .. tostring(result))
-        if type(amount) == "number" then
-            local ok2, amt = pcall(function() return amount + 0 end)
-            if ok2 then
-                print("|cffff9900KSBT-UC|r  amount=" .. tostring(amt) .. " READABLE!")
-            else
-                print("|cffff9900KSBT-UC|r  amount=SECRET")
-            end
-        end
-    end)
-end
-
--- CT listener (simplified — amounts are confirmed all-SECRET, keeping just to confirm fires)
-if C_CombatText and C_CombatText.SetActiveUnit then
-    C_CombatText.SetActiveUnit("player")
-end
-local _ctFrame = CreateFrame("Frame")
-local _ctCount = 0
-_ctFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
-_ctFrame:SetScript("OnEvent", function(self, event, ...)
-    if event ~= "COMBAT_TEXT_UPDATE" then return end
-    _ctCount = _ctCount + 1
-    if _ctCount <= 3 then
-        print("|cff00ccffKSBT-CT|r #" .. _ctCount .. " " .. tostring((...)))
-    end
-end)
-
-local _relevantSubevents = {
-    SWING_DAMAGE=true, SPELL_DAMAGE=true, SPELL_PERIODIC_DAMAGE=true,
-    RANGE_DAMAGE=true, SPELL_HEAL=true, SPELL_PERIODIC_HEAL=true,
-}
-
-local _onEventCount = 0
 f:SetScript("OnEvent", function(self, event)
-    _onEventCount = _onEventCount + 1
-    if _onEventCount <= 5 then
-        print("|cff00ff00KSBT-Outgoing|r OnEvent #" .. _onEventCount
-            .. " event=" .. tostring(event))
-    end
     if not Outgoing._enabled then return end
     local info = { CombatLogGetCurrentEventInfo() }
-    if _onEventCount <= 5 then
-        print("|cff00ff00KSBT-Outgoing|r #info=" .. tostring(#info)
-            .. " subevent=" .. tostring(info[2]))
-    end
     if #info == 0 then return end
-    -- Only log relevant subevents to avoid chat spam
-    if _relevantSubevents[info[2]] then
-        DebugPrint("CLEU relevant: subevent=" .. tostring(info[2])
-            .. " src=" .. tostring(info[5])
-            .. " srcFlags=" .. tostring(info[6]))
-    end
-
-    local ok, evtOrErr = pcall(Normalize, info)
-    if not ok then
-        Debug(1, "Parser.Outgoing normalize error:", tostring(evtOrErr))
-        print("|cffff0000KSBT-Outgoing|r Normalize ERROR: " .. tostring(evtOrErr))
-        return
-    end
-
-    local evt = evtOrErr
-    if evt then Emit(evt) end
-end)
-
-function Outgoing:Enable()
-    if self._enabled then return end
-    self._enabled = true
-
-    if EventRegistry then
-        -- WoW Midnight: CLEU is delivered via EventRegistry, not frame:RegisterEvent
-        EventRegistry:RegisterFrameEventAndCallback(
-            "COMBAT_LOG_EVENT_UNFILTERED", Outgoing._OnCLEU, Outgoing)
-        EventRegistry:RegisterFrameEventAndCallback(
-            "COMBAT_LOG_EVENT", Outgoing._OnCLEU, Outgoing)
-        print("|cff00ff00KSBT-Outgoing|r Enable() - registered CLEU+filtered via EventRegistry")
-    else
-        -- Fallback for older clients
-        f:Show()
-        f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        print("|cff00ff00KSBT-Outgoing|r Enable() - registered via frame:RegisterEvent")
-    end
-    Debug(1, "Parser.Outgoing enabled.")
-end
-
-local _cleuCallCount = 0
-function Outgoing._OnCLEU(...)
-    _cleuCallCount = _cleuCallCount + 1
-    if _cleuCallCount <= 3 then
-        -- Unconditional: confirm callback fires at all
-        print("|cff00ff00KSBT-Outgoing|r _OnCLEU #" .. _cleuCallCount
-            .. " args=" .. tostring(select("#", ...)))
-    end
-    if not Outgoing._enabled then return end
-    local info = { CombatLogGetCurrentEventInfo() }
-    if _cleuCallCount <= 3 then
-        print("|cff00ff00KSBT-Outgoing|r #info=" .. tostring(#info)
-            .. " subevent=" .. tostring(info[2]))
-    end
-    if #info == 0 then return end
-
-    DebugPrint("EventRegistry CLEU: subevent=" .. tostring(info[2]))
-
     local ok, evtOrErr = pcall(Normalize, info)
     if not ok then
         print("|cffff0000KSBT-Outgoing|r Normalize ERROR: " .. tostring(evtOrErr))
         return
     end
     if evtOrErr then Emit(evtOrErr) end
+end)
+
+function Outgoing:Enable()
+    if self._enabled then return end
+    self._enabled = true
+    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
 
 function Outgoing:Disable()
     if not self._enabled then return end
     self._enabled = false
-    if EventRegistry then
-        EventRegistry:UnregisterFrameEventAndCallback(
-            "COMBAT_LOG_EVENT_UNFILTERED", Outgoing._OnCLEU)
-    else
-        f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    end
-    Debug(1, "Parser.Outgoing disabled.")
+    f:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 end
-
-print("|cff00ff00KSBT-Outgoing|r Outgoing_Detect.lua: FULLY LOADED, Enable=" .. tostring(Outgoing.Enable))
