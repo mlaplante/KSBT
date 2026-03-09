@@ -84,11 +84,7 @@ function Addon:OnEnable()
             if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Enable then
                 KSBT.Parser.Incoming:Enable()
             end
-            print("|cffff9900KSBT-Init|r OnEnable: Parser.Outgoing=" .. tostring(KSBT.Parser.Outgoing)
-                .. " Enable=" .. tostring(KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable))
-            if KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable then
-                KSBT.Parser.Outgoing:Enable()
-            end
+            -- Outgoing is not ready for release; enabled only via Core.lua OUTGOING_READY flag
             if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Enable then
                 KSBT.Parser.CombatLog:Enable()
             end
@@ -103,7 +99,7 @@ function Addon:OnEnable()
         -- Respect saved disabled state
         if KSBT.Parser then
             if KSBT.Parser.Incoming  and KSBT.Parser.Incoming.Disable  then KSBT.Parser.Incoming:Disable()  end
-            if KSBT.Parser.Outgoing  and KSBT.Parser.Outgoing.Disable  then KSBT.Parser.Outgoing:Disable()  end
+            -- Outgoing not active in this release
             if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then KSBT.Parser.Cooldowns:Disable() end
             if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then KSBT.Parser.CombatLog:Disable() end
         end
@@ -122,9 +118,7 @@ function Addon:OnDisable()
         if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Disable then
             KSBT.Parser.Incoming:Disable()
         end
-        if KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Disable then
-            KSBT.Parser.Outgoing:Disable()
-        end
+        -- Outgoing not active in this release
         if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then
             KSBT.Parser.Cooldowns:Disable()
         end
