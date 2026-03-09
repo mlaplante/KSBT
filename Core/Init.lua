@@ -171,10 +171,36 @@ function Addon:HandleSlashCommand(input)
     elseif cmd == "version" then
         self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION)
         return
+
+    -- Diagnostic: test full display chain without any combat events
+    elseif cmd == "testdisplay" then
+        self:TestDisplay()
+        return
+
+    -- Diagnostic: dump raw UNIT_COMBAT + UNIT_SPELLCAST_SUCCEEDED to chat
+    elseif cmd == "probeevents" then
+        if rest and rest:lower() == "stop" then
+            self:StopEventProbe(false)
+        else
+            self:StartEventProbe(rest)
+        end
+        return
+
+    -- Diagnostic: test if COMBAT_TEXT_UPDATE fires in this build
+    elseif cmd == "probecombattext" then
+        if rest and rest:lower() == "stop" then
+            self:StopCombatTextProbe(false)
+        else
+            self:StartCombatTextProbe(rest)
+        end
+        return
     end
 
     self:Print("Unknown command: " .. cmd)
     self:Print("Usage: /ksbt [minimap | debug 0-3 | reset | version]")
+    self:Print("  testdisplay              — fire test text into the Outgoing area")
+    self:Print("  probeevents [sec|stop]   — dump UNIT_COMBAT events to chat")
+    self:Print("  probecombattext [sec|stop] — test if COMBAT_TEXT_UPDATE fires")
 end
 
 ------------------------------------------------------------------------
