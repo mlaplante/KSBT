@@ -99,9 +99,9 @@ function Addon:TestDisplay()
 end
 
 ------------------------------------------------------------------------
--- UNIT_COMBAT Event Probe (#2)
--- Registers a standalone frame that dumps ALL UNIT_COMBAT events for
--- "player" and "target" to chat for a set duration.
+-- CLEU Event Probe (#2)
+-- Registers a standalone frame that dumps COMBAT_LOG_EVENT_UNFILTERED
+-- events to chat for a set duration. Filters to player srcGUID/destGUID.
 ------------------------------------------------------------------------
 local _eventProbeFrame = nil
 local _eventProbeTimer = nil
@@ -116,23 +116,32 @@ function Addon:StartEventProbe(secondsStr)
         return
     end
 
-    _eventProbeFrame = CreateFrame("Frame")
-    _eventProbeFrame:RegisterUnitEvent("UNIT_COMBAT", "player")
-    _eventProbeFrame:RegisterUnitEvent("UNIT_COMBAT", "target")
-    _eventProbeFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    local playerGUID = UnitGUID("player")
 
-    _eventProbeFrame:SetScript("OnEvent", function(self, event, ...)
-        local a1, a2, a3, a4, a5 = ...
-        print("|cffff9900KSBT-Probe|r " .. event
-            .. " u=" .. tostring(a1)
-            .. " a=" .. tostring(a2)
-            .. " f=" .. tostring(a3)
-            .. " amt=" .. tostring(a4)
-            .. " s=" .. tostring(a5))
+    _eventProbeFrame = CreateFrame("Frame")
+    _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+
+    _eventProbeFrame:SetScript("OnEvent", function()
+        local ts, sub, _, srcGUID, srcName, srcFlags, _,
+              destGUID, destName, destFlags, _, ... = CombatLogGetCurrentEventInfo()
+
+        local isPlayer = (srcGUID == playerGUID) or (destGUID == playerGUID)
+        if not isPlayer then return end
+
+        local dir = (srcGUID == playerGUID) and "OUT" or "IN"
+        local args = {...}
+        local argStr = ""
+        for i = 1, math.min(#args, 8) do
+            argStr = argStr .. " " .. tostring(args[i])
+        end
+
+        print("|cffff9900KSBT-Probe|r [" .. dir .. "] " .. tostring(sub)
+            .. " src=" .. tostring(srcName)
+            .. " dst=" .. tostring(destName)
+            .. argStr)
     end)
 
-    self:Print(("Event probe STARTED for %ds. Attack something — UNIT_COMBAT and "
-             .. "UNIT_SPELLCAST_SUCCEEDED will print here."):format(seconds))
+    self:Print(("CLEU event probe STARTED for %ds. Attack something or take damage."):format(seconds))
 
     _eventProbeTimer = C_Timer.After(seconds, function()
         Addon:StopEventProbe(true)
@@ -149,60 +158,4 @@ function Addon:StopEventProbe(auto)
     _eventProbeFrame = nil
     _eventProbeTimer = nil
     self:Print("Event probe " .. (auto and "ended (timeout)." or "stopped."))
-end
-
-------------------------------------------------------------------------
--- COMBAT_TEXT_UPDATE Probe (#3)
--- Tests whether COMBAT_TEXT_UPDATE fires in Midnight for outgoing
--- player combat events. If it does, it's a cleaner attribution source
--- than UNIT_COMBAT (player-only, no false positives from group members).
-------------------------------------------------------------------------
-local _ctuProbeFrame = nil
-local _ctuProbeTimer = nil
-
-function Addon:StartCombatTextProbe(secondsStr)
-    local seconds = tonumber(secondsStr) or 30
-    if seconds < 5 then seconds = 5 end
-    if seconds > 120 then seconds = 120 end
-
-    if _ctuProbeFrame then
-        self:Print("COMBAT_TEXT_UPDATE probe already running. Use '/ksbt probecombattext stop' to stop it.")
-        return
-    end
-
-    _ctuProbeFrame = CreateFrame("Frame")
-    local ok = pcall(function()
-        _ctuProbeFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
-    end)
-
-    if not ok then
-        _ctuProbeFrame = nil
-        self:Print("|cffff4444FAIL:|r COMBAT_TEXT_UPDATE is forbidden/unavailable in this build.")
-        return
-    end
-
-    _ctuProbeFrame:SetScript("OnEvent", function(self, event, combatTextType, arg1, arg2)
-        print("|cff00ccffKSBT-CTU|r type=" .. tostring(combatTextType)
-            .. " arg1=" .. tostring(arg1)
-            .. " arg2=" .. tostring(arg2))
-    end)
-
-    self:Print(("COMBAT_TEXT_UPDATE probe STARTED for %ds. Deal damage or cast a heal. "
-             .. "If this event fires, we can use it for clean outgoing attribution."):format(seconds))
-
-    _ctuProbeTimer = C_Timer.After(seconds, function()
-        Addon:StopCombatTextProbe(true)
-    end)
-end
-
-function Addon:StopCombatTextProbe(auto)
-    if not _ctuProbeFrame then
-        self:Print("COMBAT_TEXT_UPDATE probe is not running.")
-        return
-    end
-    _ctuProbeFrame:UnregisterAllEvents()
-    _ctuProbeFrame:SetScript("OnEvent", nil)
-    _ctuProbeFrame = nil
-    _ctuProbeTimer = nil
-    self:Print("COMBAT_TEXT_UPDATE probe " .. (auto and "ended (timeout)." or "stopped."))
 end
