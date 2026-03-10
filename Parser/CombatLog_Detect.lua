@@ -83,8 +83,8 @@ local SPELL_HEAL_EVENTS = {
 local function HandleCLEU()
     local timestamp, subevent, hideCaster,
           srcGUID, srcName, srcFlags, srcRaidFlags,
-          destGUID, destName, destFlags, destRaidFlags,
-          ... = CombatLogGetCurrentEventInfo()
+          destGUID, destName, destFlags, destRaidFlags
+          = CombatLogGetCurrentEventInfo()
 
     local playerGUID = GetPlayerGUID()
     if not playerGUID then return end
@@ -99,7 +99,7 @@ local function HandleCLEU()
     -- SWING_DAMAGE: no spell prefix
     ----------------------------------------------------------------
     if subevent == "SWING_DAMAGE" then
-        local amount, overkill, school, resisted, blocked, absorbed, critical = ...
+        local amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
         local secret = IsSecret(amount)
 
         if isOutgoing then
@@ -140,7 +140,7 @@ local function HandleCLEU()
     -- SPELL_DAMAGE / SPELL_PERIODIC_DAMAGE / RANGE_DAMAGE
     ----------------------------------------------------------------
     if SPELL_DAMAGE_EVENTS[subevent] then
-        local spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical = ...
+        local spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
         local secret = IsSecret(amount)
         local isPeriodic = (subevent == "SPELL_PERIODIC_DAMAGE")
 
@@ -183,7 +183,7 @@ local function HandleCLEU()
     ----------------------------------------------------------------
     if subevent == "ENVIRONMENTAL_DAMAGE" then
         if not isIncoming then return end
-        local envType, amount, overkill, school, resisted, blocked, absorbed, critical = ...
+        local envType, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
         local secret = IsSecret(amount)
 
         EmitIncoming({
@@ -206,7 +206,7 @@ local function HandleCLEU()
     -- SPELL_HEAL / SPELL_PERIODIC_HEAL
     ----------------------------------------------------------------
     if SPELL_HEAL_EVENTS[subevent] then
-        local spellId, spellName, spellSchool, amount, overhealing, absorbed, critical = ...
+        local spellId, spellName, spellSchool, amount, overhealing, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
         local secret = IsSecret(amount)
         local isPeriodic = (subevent == "SPELL_PERIODIC_HEAL")
 

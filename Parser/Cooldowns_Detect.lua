@@ -33,7 +33,10 @@ local function IsOnCooldown(spellId)
         start, duration = GetSpellCooldown(spellId)  -- legacy clients
     end
     if not start or not duration then return false end
-    -- Cooldown start/duration are plain numbers (not secret), safe to do arithmetic.
+    -- In restricted content, cooldown values may be secret numbers.
+    if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then
+        return true  -- assume on cooldown; safe default avoids false "ready" fires
+    end
     return (start + duration - GetTime()) > 1.6
 end
 
