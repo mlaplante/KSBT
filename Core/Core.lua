@@ -10,9 +10,6 @@ local Addon = KSBT.Addon
 Core._initialized = Core._initialized or false
 Core._enabled     = Core._enabled or false
 
--- Outgoing combat text is under active development and not ready for release.
--- Set to true once the feature is confirmed working.
-local OUTGOING_READY = false
 
 function Core:IsMasterEnabled()
     return KSBT.db
@@ -115,9 +112,6 @@ function Core:Enable()
     if self.Display and self.Display.Enable then self.Display:Enable() end
     if self.Cooldowns and self.Cooldowns.Enable then self.Cooldowns:Enable() end
     if self.Combat and self.Combat.Enable then self.Combat:Enable() end
-    if OUTGOING_READY and KSBT.Parser and KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Enable then
-        KSBT.Parser.Outgoing:Enable()
-    end
 end
 
 function Core:Disable()
@@ -128,9 +122,6 @@ function Core:Disable()
         Addon:DebugPrint(1, "Core:Disable()")
     end
 
-    if OUTGOING_READY and KSBT.Parser and KSBT.Parser.Outgoing and KSBT.Parser.Outgoing.Disable then
-        KSBT.Parser.Outgoing:Disable()
-    end
     if self.Combat and self.Combat.Disable then self.Combat:Disable() end
     if self.Cooldowns and self.Cooldowns.Disable then self.Cooldowns:Disable() end
     if self.Display and self.Display.Disable then self.Display:Disable() end
