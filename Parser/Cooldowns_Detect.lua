@@ -75,7 +75,20 @@ local function SeedCooldownStates()
     end
 end
 
--- Defer RegisterEvent via C_Timer.After(0) to avoid taint.
+-- pcall + retry for RegisterEvent to handle Midnight protected-call phases.
+local _cdRegistered = false
+local function TryRegisterCooldowns()
+    if _cdRegistered then return end
+    local ok = pcall(function()
+        Cooldowns._frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    end)
+    if ok then
+        _cdRegistered = true
+    else
+        C_Timer.After(0.5, TryRegisterCooldowns)
+    end
+end
+
 do
     local f = CreateFrame("Frame")
     Cooldowns._frame = f
@@ -84,9 +97,7 @@ do
             CheckAllTracked()
         end
     end)
-    C_Timer.After(0, function()
-        f:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-    end)
+    C_Timer.After(2, TryRegisterCooldowns)
 end
 
 function Cooldowns:Enable()

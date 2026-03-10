@@ -57,7 +57,21 @@ local function OnCombatEnd()
     LowHealth._fired = false
 end
 
--- Defer RegisterEvent via C_Timer.After(0) to avoid taint.
+-- pcall + retry for RegisterEvent to handle Midnight protected-call phases.
+local _lhRegistered = false
+local function TryRegisterLowHealth()
+    if _lhRegistered then return end
+    local ok = pcall(function()
+        LowHealth._frame:RegisterEvent("UNIT_HEALTH")
+        LowHealth._frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    end)
+    if ok then
+        _lhRegistered = true
+    else
+        C_Timer.After(0.5, TryRegisterLowHealth)
+    end
+end
+
 do
     local f = CreateFrame("Frame")
     LowHealth._frame = f
@@ -69,10 +83,7 @@ do
             OnCombatEnd()
         end
     end)
-    C_Timer.After(0, function()
-        f:RegisterEvent("UNIT_HEALTH")
-        f:RegisterEvent("PLAYER_REGEN_ENABLED")
-    end)
+    C_Timer.After(2, TryRegisterLowHealth)
 end
 
 function LowHealth:Enable()

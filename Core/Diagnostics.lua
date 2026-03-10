@@ -118,20 +118,22 @@ function Addon:StartEventProbe(secondsStr)
 
     local playerGUID = UnitGUID("player")
 
+    local GetInfo = CombatLogGetCurrentEventInfo
+        or (C_CombatLog and C_CombatLog.GetCurrentEventInfo)
+
     _eventProbeFrame = CreateFrame("Frame")
-    _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     _eventProbeFrame:SetScript("OnEvent", function()
         local ts, sub, _, srcGUID, srcName, srcFlags, _,
-              destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
+              destGUID, destName, destFlags = GetInfo()
 
         local isPlayer = (srcGUID == playerGUID) or (destGUID == playerGUID)
         if not isPlayer then return end
 
         local dir = (srcGUID == playerGUID) and "OUT" or "IN"
         local argStr = ""
-        for i = 12, math.min(select("#", CombatLogGetCurrentEventInfo()), 19) do
-            argStr = argStr .. " " .. tostring(select(i, CombatLogGetCurrentEventInfo()))
+        for i = 12, math.min(select("#", GetInfo()), 19) do
+            argStr = argStr .. " " .. tostring(select(i, GetInfo()))
         end
 
         print("|cffff9900KSBT-Probe|r [" .. dir .. "] " .. tostring(sub)
@@ -139,6 +141,21 @@ function Addon:StartEventProbe(secondsStr)
             .. " dst=" .. tostring(destName)
             .. argStr)
     end)
+
+    -- pcall + retry for RegisterEvent (Midnight protected-call phases)
+    local registered = false
+    local function tryRegister()
+        if registered then return end
+        local ok = pcall(function()
+            _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        end)
+        if ok then
+            registered = true
+        else
+            C_Timer.After(0.5, tryRegister)
+        end
+    end
+    tryRegister()
 
     self:Print(("CLEU event probe STARTED for %ds. Attack something or take damage."):format(seconds))
 

@@ -3,7 +3,7 @@
 --
 -- Responsibility:
 --   - Register COMBAT_LOG_EVENT_UNFILTERED
---   - Parse CombatLogGetCurrentEventInfo() payloads
+--   - Parse GetCombatLogInfo() payloads
 --   - Route outgoing events (srcGUID == player) to OutgoingProbe
 --   - Route incoming events (destGUID == player) to IncomingProbe
 --   - Detect secret values via issecretvalue() for restricted content
@@ -22,6 +22,11 @@ CombatLog._enabled = CombatLog._enabled or false
 CombatLog._frame   = CombatLog._frame or nil
 
 local _playerGUID = nil
+local _cleuRegistered = false
+
+-- Resolve the correct API: Midnight moved it to C_CombatLog namespace.
+local GetCombatLogInfo = CombatLogGetCurrentEventInfo
+    or (C_CombatLog and C_CombatLog.GetCurrentEventInfo)
 
 local function Debug(level, ...)
     if Addon and Addon.DebugPrint then
@@ -84,7 +89,7 @@ local function HandleCLEU()
     local timestamp, subevent, hideCaster,
           srcGUID, srcName, srcFlags, srcRaidFlags,
           destGUID, destName, destFlags, destRaidFlags
-          = CombatLogGetCurrentEventInfo()
+          = GetCombatLogInfo()
 
     local playerGUID = GetPlayerGUID()
     if not playerGUID then return end
@@ -99,7 +104,7 @@ local function HandleCLEU()
     -- SWING_DAMAGE: no spell prefix
     ----------------------------------------------------------------
     if subevent == "SWING_DAMAGE" then
-        local amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
+        local amount, overkill, school, resisted, blocked, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
 
         if isOutgoing then
@@ -140,7 +145,7 @@ local function HandleCLEU()
     -- SPELL_DAMAGE / SPELL_PERIODIC_DAMAGE / RANGE_DAMAGE
     ----------------------------------------------------------------
     if SPELL_DAMAGE_EVENTS[subevent] then
-        local spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
+        local spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
         local isPeriodic = (subevent == "SPELL_PERIODIC_DAMAGE")
 
@@ -183,7 +188,7 @@ local function HandleCLEU()
     ----------------------------------------------------------------
     if subevent == "ENVIRONMENTAL_DAMAGE" then
         if not isIncoming then return end
-        local envType, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
+        local envType, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
 
         EmitIncoming({
@@ -206,7 +211,7 @@ local function HandleCLEU()
     -- SPELL_HEAL / SPELL_PERIODIC_HEAL
     ----------------------------------------------------------------
     if SPELL_HEAL_EVENTS[subevent] then
-        local spellId, spellName, spellSchool, amount, overhealing, absorbed, critical = select(12, CombatLogGetCurrentEventInfo())
+        local spellId, spellName, spellSchool, amount, overhealing, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
         local isPeriodic = (subevent == "SPELL_PERIODIC_HEAL")
 
@@ -249,8 +254,21 @@ end
 ------------------------------------------------------------------------
 -- Enable / Disable
 ------------------------------------------------------------------------
--- Defer RegisterEvent via C_Timer.After(0) to run from a clean C callback,
--- avoiding taint from both addon load and AceAddon:OnEnable call chains.
+-- RegisterEvent can fail as a protected call during certain phases in Midnight.
+-- Use pcall + retry (pattern from BlizzSCT) until registration succeeds.
+local function TryRegisterCLEU()
+    if _cleuRegistered then return end
+    local ok = pcall(function()
+        CombatLog._frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    end)
+    if ok then
+        _cleuRegistered = true
+        Debug(1, "Parser.CombatLog: CLEU registered successfully")
+    else
+        C_Timer.After(0.5, TryRegisterCLEU)
+    end
+end
+
 do
     local f = CreateFrame("Frame")
     CombatLog._frame = f
@@ -259,9 +277,8 @@ do
             HandleCLEU()
         end
     end)
-    C_Timer.After(0, function()
-        f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    end)
+    -- Delay initial attempt to let the client settle after load.
+    C_Timer.After(2, TryRegisterCLEU)
 end
 
 function CombatLog:Enable()
