@@ -31,21 +31,19 @@ local function CheckHealth()
         db.media.sounds and db.media.sounds.lowHealthThreshold
     ) or 20
 
-    -- UnitHealth/UnitHealthMax return secret numbers in WoW Midnight.
-    -- UnitHealthPercent avoids addon-side arithmetic on protected values.
-    local pct = UnitHealthPercent and UnitHealthPercent("player")
-    if pct == nil then
-        -- Fallback: pcall the division to silently handle secret number taint
-        local maxHP = UnitHealthMax("player")
-        if not maxHP or maxHP <= 0 then return end
-        local ok, result = pcall(function() return (UnitHealth("player") / maxHP) * 100 end)
-        if not ok then return end
-        pct = result
+    -- 12.0.1+: UnitHealth/UnitHealthMax return secret (tainted) numbers that
+    -- addons cannot read or compare. UnitHealthPercent is the Blizzard-sanctioned
+    -- replacement that returns a plain, non-tainted percentage.
+    if not UnitHealthPercent then
+        Debug(1, "LowHealth: UnitHealthPercent unavailable, feature disabled")
+        return
     end
-    if pct > threshold then return end
+
+    local pct = UnitHealthPercent("player")
+    if pct == nil or pct > threshold then return end
 
     LowHealth._fired = true
-    Debug(1, ("LowHealth: %.1f%% <= %d%%, playing sound"):format(pct, threshold))
+    Debug(1, ("LowHealth: %.0f%% <= %d%% threshold, playing sound"):format(pct, threshold))
 
     local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
     local soundPath = LSM and LSM:Fetch("sound", soundName)
