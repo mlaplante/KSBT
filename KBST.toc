@@ -36,12 +36,10 @@ Core\Display_Decide.lua
 Core\Cooldowns_Decide.lua
 Core\Combat_Decide.lua
 
-# Parser (Detection) - Skeletons
+# Parser (Detection)
 Parser\Normalize.lua
 Parser\CombatLog_Detect.lua
 Parser\Cooldowns_Detect.lua
-Parser\Incoming_Detect.lua
-Parser\Outgoing_Detect.lua
 
 # UI - Config tabs before main config assembler
 UI\ConfigTabs.lua
