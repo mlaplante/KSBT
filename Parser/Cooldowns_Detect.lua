@@ -75,32 +75,28 @@ local function SeedCooldownStates()
     end
 end
 
+-- Register event at load time to avoid taint from AceAddon:OnEnable call chain.
+do
+    local f = CreateFrame("Frame")
+    Cooldowns._frame = f
+    f:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    f:SetScript("OnEvent", function()
+        if Cooldowns._enabled then
+            CheckAllTracked()
+        end
+    end)
+end
+
 function Cooldowns:Enable()
     if self._enabled then return end
     self._enabled = true
     Debug(1, "Parser.Cooldowns:Enable()")
-
-    if not self._frame then
-        self._frame = CreateFrame("Frame")
-    end
-
-    self._frame:SetScript("OnEvent", function()
-        CheckAllTracked()
-    end)
-
     SeedCooldownStates()
-    self._frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 end
 
 function Cooldowns:Disable()
     if not self._enabled then return end
     self._enabled = false
     Debug(1, "Parser.Cooldowns:Disable()")
-
-    if self._frame then
-        self._frame:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
-        self._frame:SetScript("OnEvent", nil)
-    end
-
     wipe(self._onCooldown)
 end

@@ -123,16 +123,15 @@ function Addon:StartEventProbe(secondsStr)
 
     _eventProbeFrame:SetScript("OnEvent", function()
         local ts, sub, _, srcGUID, srcName, srcFlags, _,
-              destGUID, destName, destFlags, _, ... = CombatLogGetCurrentEventInfo()
+              destGUID, destName, destFlags = CombatLogGetCurrentEventInfo()
 
         local isPlayer = (srcGUID == playerGUID) or (destGUID == playerGUID)
         if not isPlayer then return end
 
         local dir = (srcGUID == playerGUID) and "OUT" or "IN"
-        local args = {...}
         local argStr = ""
-        for i = 1, math.min(#args, 8) do
-            argStr = argStr .. " " .. tostring(args[i])
+        for i = 12, math.min(select("#", CombatLogGetCurrentEventInfo()), 19) do
+            argStr = argStr .. " " .. tostring(select(i, CombatLogGetCurrentEventInfo()))
         end
 
         print("|cffff9900KSBT-Probe|r [" .. dir .. "] " .. tostring(sub)

@@ -57,35 +57,31 @@ local function OnCombatEnd()
     LowHealth._fired = false
 end
 
-function LowHealth:Enable()
-    if self._enabled then return end
-    self._enabled = true
-    self._fired   = false
-    Debug(1, "LowHealth:Enable()")
-
-    if not self._frame then
-        self._frame = CreateFrame("Frame")
-    end
-
-    self._frame:SetScript("OnEvent", function(_, event, unit)
+-- Register events at load time to avoid taint from AceAddon:OnEnable call chain.
+do
+    local f = CreateFrame("Frame")
+    LowHealth._frame = f
+    f:RegisterEvent("UNIT_HEALTH")
+    f:RegisterEvent("PLAYER_REGEN_ENABLED")
+    f:SetScript("OnEvent", function(_, event, unit)
+        if not LowHealth._enabled then return end
         if event == "UNIT_HEALTH" and unit == "player" then
             CheckHealth()
         elseif event == "PLAYER_REGEN_ENABLED" then
             OnCombatEnd()
         end
     end)
+end
 
-    self._frame:RegisterEvent("UNIT_HEALTH")
-    self._frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+function LowHealth:Enable()
+    if self._enabled then return end
+    self._enabled = true
+    self._fired   = false
+    Debug(1, "LowHealth:Enable()")
 end
 
 function LowHealth:Disable()
     if not self._enabled then return end
     self._enabled = false
     Debug(1, "LowHealth:Disable()")
-
-    if self._frame then
-        self._frame:UnregisterAllEvents()
-        self._frame:SetScript("OnEvent", nil)
-    end
 end

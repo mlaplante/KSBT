@@ -249,34 +249,29 @@ end
 ------------------------------------------------------------------------
 -- Enable / Disable
 ------------------------------------------------------------------------
+-- Create frame and register CLEU at load time (untainted execution path).
+-- OnEnable/OnDisable runs through AceAddon which can carry taint from other
+-- addons, making RegisterEvent() a protected-call violation in Midnight.
+do
+    local f = CreateFrame("Frame")
+    CombatLog._frame = f
+    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    f:SetScript("OnEvent", function()
+        if CombatLog._enabled then
+            HandleCLEU()
+        end
+    end)
+end
+
 function CombatLog:Enable()
     if self._enabled then return end
     self._enabled = true
-
-    Debug(1, "Parser.CombatLog:Enable()")
-
     _playerGUID = UnitGUID("player")
-
-    if not self._frame then
-        local f = CreateFrame("Frame")
-        self._frame = f
-    end
-
-    self._frame:SetScript("OnEvent", function()
-        HandleCLEU()
-    end)
-
-    self._frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    Debug(1, "Parser.CombatLog:Enable()")
 end
 
 function CombatLog:Disable()
     if not self._enabled then return end
     self._enabled = false
-
     Debug(1, "Parser.CombatLog:Disable()")
-
-    if self._frame then
-        self._frame:UnregisterAllEvents()
-        self._frame:SetScript("OnEvent", nil)
-    end
 end
