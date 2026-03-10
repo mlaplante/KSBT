@@ -46,15 +46,16 @@ local function IsDummyTarget(destFlags)
 end
 
 -- In restricted content (M+, raids) CLEU amounts are "secret numbers":
--- arithmetic on them throws, but tostring() works via metamethod.
+-- arithmetic on them throws, but tostring() works via Blizzard metamethod.
 -- Returns: plainValue (number), isSecret (bool)
-local function TryReadAmount(raw)
+local function ReadAmount(raw)
     if raw == nil then return 0, false end
-    local ok, val = pcall(function() return raw + 0 end)
-    if ok and type(val) == "number" then
-        return val, false
+    if issecretvalue and issecretvalue(raw) then
+        return raw, true  -- secret: caller must avoid arithmetic, use tostring()
     end
-    return raw, true  -- secret: caller must avoid arithmetic, use tostring()
+    local val = tonumber(raw)
+    if val then return val, false end
+    return 0, false
 end
 
 local function MergeKey(kind, spellId, area)
@@ -323,7 +324,8 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if mode == "Show Only Crits" and evt.isCrit ~= true then return end
         end
 
-        local amt, isSecret = TryReadAmount(evt.amount)
+        local amt, isSecret = ReadAmount(evt.amount)
+        if evt.isSecret then isSecret = true end
 
         -- When readable: apply min-threshold and spam controls.
         if not isSecret then
@@ -392,8 +394,9 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local conf = prof.healing
         if not conf or not conf.enabled then return end
 
-        local amt, isSecret   = TryReadAmount(evt.amount)
-        local over, overSecret = TryReadAmount(evt.overheal)
+        local amt, isSecret   = ReadAmount(evt.amount)
+        local over, overSecret = ReadAmount(evt.overheal)
+        if evt.isSecret then isSecret = true; overSecret = true end
 
         -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
         local displayAmt
