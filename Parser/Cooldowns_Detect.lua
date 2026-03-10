@@ -33,9 +33,8 @@ local function IsOnCooldown(spellId)
         start, duration = GetSpellCooldown(spellId)  -- legacy clients
     end
     if not start or not duration then return false end
-    local ok, remaining = pcall(function() return start + duration - GetTime() end)
-    if not ok then return true end  -- can't determine, assume still on cooldown
-    return remaining > 1.6
+    -- Cooldown start/duration are plain numbers (not secret), safe to do arithmetic.
+    return (start + duration - GetTime()) > 1.6
 end
 
 local function CheckAllTracked()

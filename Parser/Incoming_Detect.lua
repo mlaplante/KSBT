@@ -68,18 +68,9 @@ function Incoming:Enable()
     end
 
     self._frame:SetScript("OnEvent", function(_, _, ...)
-        local ok, evtOrErr = pcall(function(...)
-            local unitTarget, event, flagText, amount, schoolMask = ...
-            return NormalizeUnitCombat(unitTarget, event, flagText, amount, schoolMask)
-        end, ...)
-
-        if not ok then
-            -- If Blizzard changes something and we start erroring, do not spam.
-            Debug(1, "Parser.Incoming UNIT_COMBAT error:", tostring(evtOrErr))
-            return
-        end
-
-        local evt = evtOrErr
+        -- UNIT_COMBAT amounts go through tonumber() in NormalizeUnitCombat,
+        -- which returns nil for secret numbers (no pcall needed).
+        local evt = NormalizeUnitCombat(...)
         if not evt then return end
 
         local probe = KSBT.Core and KSBT.Core.IncomingProbe
