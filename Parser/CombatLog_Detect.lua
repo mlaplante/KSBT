@@ -1,15 +1,14 @@
 ------------------------------------------------------------------------
--- Kroth's Scrolling Battle Text - Combat Log Detection (CLEU)
+-- Kroth's Scrolling Battle Text - Combat Log Detection (CLEU + UNIT_COMBAT)
 --
 -- Responsibility:
---   - Register COMBAT_LOG_EVENT_UNFILTERED
---   - Parse GetCombatLogInfo() payloads
---   - Route outgoing events (srcGUID == player) to OutgoingProbe
---   - Route incoming events (destGUID == player) to IncomingProbe
+--   - Register COMBAT_LOG_EVENT_UNFILTERED (pcall + retry)
+--   - Register UNIT_COMBAT on "player" as incoming fallback
+--   - Parse combat event payloads
+--   - Route outgoing events (sourceFlags MINE+PLAYER) to OutgoingProbe
+--   - Route incoming events (destFlags MINE+PLAYER) to IncomingProbe
 --   - Detect secret values via issecretvalue() for restricted content
---
--- Replaces the old Incoming_Detect.lua (UNIT_COMBAT on player) and
--- Outgoing_Detect.lua (UNIT_COMBAT on target + UNIT_SPELLCAST_SUCCEEDED).
+--   - All operations on potentially secret values are pcall-wrapped
 ------------------------------------------------------------------------
 local ADDON_NAME, KSBT = ...
 
@@ -19,14 +18,19 @@ local CombatLog = KSBT.Parser.CombatLog
 local Addon     = KSBT.Addon
 
 CombatLog._enabled = CombatLog._enabled or false
-CombatLog._frame   = CombatLog._frame or nil
 
-local _playerGUID = nil
 local _cleuRegistered = false
+local _ucRegistered   = false
 
 -- Resolve the correct API: Midnight moved it to C_CombatLog namespace.
 local GetCombatLogInfo = CombatLogGetCurrentEventInfo
     or (C_CombatLog and C_CombatLog.GetCurrentEventInfo)
+
+-- Bitwise helpers for sourceFlags / destFlags attribution.
+-- Safer than GUID comparison because GUIDs can be secret in restricted content.
+local band = bit.band
+local FLAG_MINE   = COMBATLOG_OBJECT_AFFILIATION_MINE or 0x00000001
+local FLAG_PLAYER = COMBATLOG_OBJECT_TYPE_PLAYER       or 0x00000400
 
 local function Debug(level, ...)
     if Addon and Addon.DebugPrint then
@@ -38,11 +42,16 @@ local function IsSecret(val)
     return issecretvalue and issecretvalue(val) or false
 end
 
-local function GetPlayerGUID()
-    if not _playerGUID then
-        _playerGUID = UnitGUID("player")
-    end
-    return _playerGUID
+-- Safe crit check: the `critical` field from CLEU can be a secret boolean.
+local function IsCrit(critical)
+    if critical == nil then return false end
+    local ok, result = pcall(function() return critical == true or critical == 1 end)
+    return ok and result or false
+end
+
+local function IsPlayerMine(flags)
+    if not flags or type(flags) ~= "number" then return false end
+    return band(flags, FLAG_MINE) ~= 0 and band(flags, FLAG_PLAYER) ~= 0
 end
 
 local function EmitOutgoing(evt)
@@ -62,11 +71,12 @@ end
 local function SpellNameForId(spellId)
     if not spellId then return nil end
     if C_Spell and C_Spell.GetSpellInfo then
-        local info = C_Spell.GetSpellInfo(spellId)
-        return info and info.name
+        local ok, info = pcall(C_Spell.GetSpellInfo, spellId)
+        return ok and info and info.name
     end
     if GetSpellInfo then
-        return (GetSpellInfo(spellId))
+        local ok, name = pcall(GetSpellInfo, spellId)
+        return ok and name
     end
 end
 
@@ -85,17 +95,20 @@ local SPELL_HEAL_EVENTS = {
     SPELL_PERIODIC_HEAL = true,
 }
 
+-- Track last CLEU incoming event timestamp to deduplicate against UNIT_COMBAT.
+local _lastCLEUIncoming = 0
+
 local function HandleCLEU()
+    if not GetCombatLogInfo then return end
+
     local timestamp, subevent, hideCaster,
           srcGUID, srcName, srcFlags, srcRaidFlags,
           destGUID, destName, destFlags, destRaidFlags
           = GetCombatLogInfo()
 
-    local playerGUID = GetPlayerGUID()
-    if not playerGUID then return end
-
-    local isOutgoing = (srcGUID == playerGUID)
-    local isIncoming = (destGUID == playerGUID)
+    -- Use sourceFlags/destFlags for attribution (safe with secret GUIDs).
+    local isOutgoing = IsPlayerMine(srcFlags)
+    local isIncoming = IsPlayerMine(destFlags)
     if not isOutgoing and not isIncoming then return end
 
     local now = GetTime()
@@ -114,7 +127,7 @@ local function HandleCLEU()
                 amount     = amount,
                 isSecret   = secret,
                 isAuto     = true,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = false,
                 spellId    = nil,
                 spellName  = nil,
@@ -124,12 +137,13 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
+            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "damage",
                 amount     = amount,
                 isSecret   = secret,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = false,
                 schoolMask = school or 1,
                 spellId    = nil,
@@ -156,7 +170,7 @@ local function HandleCLEU()
                 amount     = amount,
                 isSecret   = secret,
                 isAuto     = false,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = isPeriodic,
                 spellId    = spellId,
                 spellName  = spellName or SpellNameForId(spellId),
@@ -166,12 +180,13 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
+            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "damage",
                 amount     = amount,
                 isSecret   = secret,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = isPeriodic,
                 schoolMask = spellSchool or school or 1,
                 spellId    = spellId,
@@ -191,12 +206,13 @@ local function HandleCLEU()
         local envType, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
 
+        _lastCLEUIncoming = now
         EmitIncoming({
             ts         = now,
             kind       = "damage",
             amount     = amount,
             isSecret   = secret,
-            isCrit     = (critical == true) or (critical == 1),
+            isCrit     = IsCrit(critical),
             isPeriodic = false,
             schoolMask = school or 1,
             spellId    = nil,
@@ -223,7 +239,7 @@ local function HandleCLEU()
                 isSecret   = secret,
                 overheal   = overhealing,
                 isAuto     = false,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = isPeriodic,
                 spellId    = spellId,
                 spellName  = spellName or SpellNameForId(spellId),
@@ -233,12 +249,13 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
+            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "heal",
                 amount     = amount,
                 isSecret   = secret,
-                isCrit     = (critical == true) or (critical == 1),
+                isCrit     = IsCrit(critical),
                 isPeriodic = isPeriodic,
                 schoolMask = spellSchool or 1,
                 spellId    = spellId,
@@ -252,14 +269,71 @@ local function HandleCLEU()
 end
 
 ------------------------------------------------------------------------
--- Enable / Disable
+-- UNIT_COMBAT fallback for incoming (fires even when CLEU registration
+-- fails). Uses deduplication: if CLEU already emitted this frame, skip.
 ------------------------------------------------------------------------
--- RegisterEvent can fail as a protected call during certain phases in Midnight.
--- Use pcall + retry (pattern from BlizzSCT) until registration succeeds.
+local UNIT_COMBAT_KIND = {
+    WOUND  = "damage",
+    HEAL   = "heal",
+}
+
+local function HandleUnitCombat(unit, action, indicator, amount, school)
+    if unit ~= "player" then return end
+
+    local kind = UNIT_COMBAT_KIND[action]
+    if not kind then return end
+
+    -- Deduplicate: if CLEU already handled incoming this frame, skip.
+    local now = GetTime()
+    if now == _lastCLEUIncoming then return end
+
+    local secret = IsSecret(amount)
+    local isCrit = (indicator == "CRITICAL")
+
+    EmitIncoming({
+        ts         = now,
+        kind       = kind,
+        amount     = amount,
+        isSecret   = secret,
+        isCrit     = isCrit,
+        isPeriodic = false,
+        schoolMask = school or 1,
+        spellId    = nil,
+        spellName  = nil,
+        sourceName = nil,
+    })
+end
+
+------------------------------------------------------------------------
+-- Event Registration (pcall + retry for Midnight protected phases)
+------------------------------------------------------------------------
+local _cleuFrame = CreateFrame("Frame")
+local _ucFrame   = CreateFrame("Frame")
+
+_cleuFrame:SetScript("OnEvent", function()
+    if CombatLog._enabled then
+        -- Wrap entire handler in pcall to prevent secret value errors
+        -- from breaking the event handler for subsequent events.
+        local ok, err = pcall(HandleCLEU)
+        if not ok then
+            Debug(2, "Parser.CombatLog: CLEU handler error: " .. tostring(err))
+        end
+    end
+end)
+
+_ucFrame:SetScript("OnEvent", function(_, _, unit, action, indicator, amount, school)
+    if CombatLog._enabled then
+        local ok, err = pcall(HandleUnitCombat, unit, action, indicator, amount, school)
+        if not ok then
+            Debug(2, "Parser.CombatLog: UNIT_COMBAT handler error: " .. tostring(err))
+        end
+    end
+end)
+
 local function TryRegisterCLEU()
     if _cleuRegistered then return end
     local ok = pcall(function()
-        CombatLog._frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        _cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     end)
     if ok then
         _cleuRegistered = true
@@ -269,22 +343,44 @@ local function TryRegisterCLEU()
     end
 end
 
-do
-    local f = CreateFrame("Frame")
-    CombatLog._frame = f
-    f:SetScript("OnEvent", function()
-        if CombatLog._enabled then
-            HandleCLEU()
+local function TryRegisterUnitCombat()
+    if _ucRegistered then return end
+    -- RegisterUnitEvent is often less restricted than RegisterEvent for CLEU.
+    local ok = pcall(function()
+        if _ucFrame.RegisterUnitEvent then
+            _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player")
+        else
+            _ucFrame:RegisterEvent("UNIT_COMBAT")
         end
     end)
-    -- Delay initial attempt to let the client settle after load.
-    C_Timer.After(2, TryRegisterCLEU)
+    if ok then
+        _ucRegistered = true
+        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
+    else
+        C_Timer.After(0.5, TryRegisterUnitCombat)
+    end
 end
 
+-- Delay initial attempts to let the client settle after load.
+C_Timer.After(1, TryRegisterUnitCombat)
+C_Timer.After(2, TryRegisterCLEU)
+
+-- If player reloads during combat, retry registration when combat ends.
+do
+    local regenFrame = CreateFrame("Frame")
+    regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    regenFrame:SetScript("OnEvent", function()
+        if not _cleuRegistered then TryRegisterCLEU() end
+        if not _ucRegistered then TryRegisterUnitCombat() end
+    end)
+end
+
+------------------------------------------------------------------------
+-- Enable / Disable
+------------------------------------------------------------------------
 function CombatLog:Enable()
     if self._enabled then return end
     self._enabled = true
-    _playerGUID = UnitGUID("player")
     Debug(1, "Parser.CombatLog:Enable()")
 end
 
