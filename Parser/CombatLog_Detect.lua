@@ -95,8 +95,18 @@ local SPELL_HEAL_EVENTS = {
     SPELL_PERIODIC_HEAL = true,
 }
 
--- Track last CLEU incoming event timestamp to deduplicate against UNIT_COMBAT.
+-- Deduplication timestamps: if CLEU already handled an event this frame, skip UC.
 local _lastCLEUIncoming = 0
+local _lastCLEUOutgoing = 0
+
+-- CLEU gating for outgoing UNIT_COMBAT: mark that the player hit the target
+-- this frame, so UNIT_COMBAT "target" knows it was our damage.
+local _cleuOutgoingMark = false
+
+-- Last spell cast tracker (for UNIT_COMBAT which lacks spellId).
+local _lastCastSpellId   = nil
+local _lastCastSpellName = nil
+local _lastCastTime      = 0
 
 local function HandleCLEU()
     if not GetCombatLogInfo then return end
@@ -112,6 +122,15 @@ local function HandleCLEU()
     if not isOutgoing and not isIncoming then return end
 
     local now = GetTime()
+
+    -- Mark CLEU handled this frame for deduplication against UNIT_COMBAT.
+    if isOutgoing then
+        _lastCLEUOutgoing = now
+        _cleuOutgoingMark = true
+    end
+    if isIncoming then
+        _lastCLEUIncoming = now
+    end
 
     ----------------------------------------------------------------
     -- SWING_DAMAGE: no spell prefix
@@ -137,7 +156,6 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
-            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "damage",
@@ -180,7 +198,6 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
-            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "damage",
@@ -206,7 +223,6 @@ local function HandleCLEU()
         local envType, amount, overkill, school, resisted, blocked, absorbed, critical = select(12, GetCombatLogInfo())
         local secret = IsSecret(amount)
 
-        _lastCLEUIncoming = now
         EmitIncoming({
             ts         = now,
             kind       = "damage",
@@ -249,7 +265,6 @@ local function HandleCLEU()
             })
         end
         if isIncoming then
-            _lastCLEUIncoming = now
             EmitIncoming({
                 ts         = now,
                 kind       = "heal",
@@ -269,8 +284,9 @@ local function HandleCLEU()
 end
 
 ------------------------------------------------------------------------
--- UNIT_COMBAT fallback for incoming (fires even when CLEU registration
--- fails). Uses deduplication: if CLEU already emitted this frame, skip.
+-- UNIT_COMBAT fallback (fires even when CLEU registration fails).
+-- "player" = incoming, "target" = outgoing (gated by CLEU mark).
+-- Uses deduplication: if CLEU already emitted this frame, skip.
 ------------------------------------------------------------------------
 local UNIT_COMBAT_KIND = {
     WOUND  = "damage",
@@ -278,42 +294,84 @@ local UNIT_COMBAT_KIND = {
 }
 
 local function HandleUnitCombat(unit, action, indicator, amount, school)
-    if unit ~= "player" then return end
-
     local kind = UNIT_COMBAT_KIND[action]
     if not kind then return end
 
-    -- Deduplicate: if CLEU already handled incoming this frame, skip.
     local now = GetTime()
-    if now == _lastCLEUIncoming then return end
-
     local secret = IsSecret(amount)
     local isCrit = (indicator == "CRITICAL")
 
-    EmitIncoming({
-        ts         = now,
-        kind       = kind,
-        amount     = amount,
-        isSecret   = secret,
-        isCrit     = isCrit,
-        isPeriodic = false,
-        schoolMask = school or 1,
-        spellId    = nil,
-        spellName  = nil,
-        sourceName = nil,
-    })
+    if unit == "player" then
+        -- Incoming fallback: skip if CLEU already handled this frame.
+        if now == _lastCLEUIncoming then return end
+
+        EmitIncoming({
+            ts         = now,
+            kind       = kind,
+            amount     = amount,
+            isSecret   = secret,
+            isCrit     = isCrit,
+            isPeriodic = false,
+            schoolMask = school or 1,
+            spellId    = nil,
+            spellName  = nil,
+            sourceName = nil,
+        })
+
+    elseif unit == "target" then
+        -- Outgoing fallback: skip if CLEU already handled this frame.
+        if now == _lastCLEUOutgoing then return end
+
+        -- UNIT_COMBAT "target" fires for ALL sources hitting the target.
+        -- Only emit if CLEU marked this as our hit, OR if CLEU is not
+        -- registered (no gating available, accept false positives).
+        if _cleuRegistered and not _cleuOutgoingMark then return end
+        _cleuOutgoingMark = false
+
+        -- Attach last-cast spell info if recent enough (1.5s window).
+        local spellId, spellName
+        if _lastCastTime and (now - _lastCastTime) < 1.5 then
+            spellId   = _lastCastSpellId
+            spellName = _lastCastSpellName
+        end
+
+        EmitOutgoing({
+            ts         = now,
+            kind       = kind,
+            amount     = amount,
+            isSecret   = secret,
+            isAuto     = (spellId == nil),
+            isCrit     = isCrit,
+            isPeriodic = false,
+            spellId    = spellId,
+            spellName  = spellName,
+            schoolMask = school or 1,
+            destFlags  = nil,
+            targetName = nil,
+        })
+    end
+end
+
+------------------------------------------------------------------------
+-- UNIT_SPELLCAST_SUCCEEDED tracker: gives UNIT_COMBAT spell context.
+------------------------------------------------------------------------
+local function HandleSpellcastSucceeded(unit, _, spellId)
+    if unit ~= "player" then return end
+    _lastCastSpellId   = spellId
+    _lastCastSpellName = SpellNameForId(spellId)
+    _lastCastTime      = GetTime()
 end
 
 ------------------------------------------------------------------------
 -- Event Registration (pcall + retry for Midnight protected phases)
 ------------------------------------------------------------------------
-local _cleuFrame = CreateFrame("Frame")
-local _ucFrame   = CreateFrame("Frame")
+local _cleuFrame    = CreateFrame("Frame")
+local _ucFrame      = CreateFrame("Frame")
+local _spellFrame   = CreateFrame("Frame")
 
+-- CLEU handler
 _cleuFrame:SetScript("OnEvent", function()
     if CombatLog._enabled then
-        -- Wrap entire handler in pcall to prevent secret value errors
-        -- from breaking the event handler for subsequent events.
         local ok, err = pcall(HandleCLEU)
         if not ok then
             Debug(2, "Parser.CombatLog: CLEU handler error: " .. tostring(err))
@@ -321,12 +379,20 @@ _cleuFrame:SetScript("OnEvent", function()
     end
 end)
 
+-- UNIT_COMBAT handler (incoming "player" + outgoing "target")
 _ucFrame:SetScript("OnEvent", function(_, _, unit, action, indicator, amount, school)
     if CombatLog._enabled then
         local ok, err = pcall(HandleUnitCombat, unit, action, indicator, amount, school)
         if not ok then
             Debug(2, "Parser.CombatLog: UNIT_COMBAT handler error: " .. tostring(err))
         end
+    end
+end)
+
+-- Spell cast tracker (enriches UNIT_COMBAT with spell info)
+_spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
+    if CombatLog._enabled then
+        pcall(HandleSpellcastSucceeded, unit, nil, spellId)
     end
 end)
 
@@ -345,10 +411,10 @@ end
 
 local function TryRegisterUnitCombat()
     if _ucRegistered then return end
-    -- RegisterUnitEvent is often less restricted than RegisterEvent for CLEU.
     local ok = pcall(function()
         if _ucFrame.RegisterUnitEvent then
-            _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player")
+            -- Register for both "player" (incoming) and "target" (outgoing).
+            _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
         else
             _ucFrame:RegisterEvent("UNIT_COMBAT")
         end
@@ -361,18 +427,42 @@ local function TryRegisterUnitCombat()
     end
 end
 
+local _spellRegistered = false
+local function TryRegisterSpellcast()
+    if _spellRegistered then return end
+    local ok = pcall(function()
+        if _spellFrame.RegisterUnitEvent then
+            _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+        else
+            _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        end
+    end)
+    if ok then
+        _spellRegistered = true
+        Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
+    else
+        C_Timer.After(0.5, TryRegisterSpellcast)
+    end
+end
+
 -- Delay initial attempts to let the client settle after load.
 C_Timer.After(1, TryRegisterUnitCombat)
+C_Timer.After(1, TryRegisterSpellcast)
 C_Timer.After(2, TryRegisterCLEU)
 
 -- If player reloads during combat, retry registration when combat ends.
 do
     local regenFrame = CreateFrame("Frame")
-    regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    regenFrame:SetScript("OnEvent", function()
-        if not _cleuRegistered then TryRegisterCLEU() end
-        if not _ucRegistered then TryRegisterUnitCombat() end
+    local ok = pcall(function()
+        regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     end)
+    if ok then
+        regenFrame:SetScript("OnEvent", function()
+            if not _cleuRegistered then TryRegisterCLEU() end
+            if not _ucRegistered then TryRegisterUnitCombat() end
+            if not _spellRegistered then TryRegisterSpellcast() end
+        end)
+    end
 end
 
 ------------------------------------------------------------------------
