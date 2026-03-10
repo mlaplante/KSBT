@@ -81,10 +81,6 @@ function Addon:OnEnable()
         if KSBT.Core and KSBT.Core.Enable then KSBT.Core:Enable() end
 
         if KSBT.Parser then
-            if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Enable then
-                KSBT.Parser.Incoming:Enable()
-            end
-            -- Outgoing is not ready for release; enabled only via Core.lua OUTGOING_READY flag
             if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Enable then
                 KSBT.Parser.CombatLog:Enable()
             end
@@ -98,10 +94,8 @@ function Addon:OnEnable()
     else
         -- Respect saved disabled state
         if KSBT.Parser then
-            if KSBT.Parser.Incoming  and KSBT.Parser.Incoming.Disable  then KSBT.Parser.Incoming:Disable()  end
-            -- Outgoing not active in this release
-            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then KSBT.Parser.Cooldowns:Disable() end
             if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then KSBT.Parser.CombatLog:Disable() end
+            if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then KSBT.Parser.Cooldowns:Disable() end
         end
         if KSBT.Core and KSBT.Core.Disable then KSBT.Core:Disable() end
         if KSBT.Core and KSBT.Core.LowHealth and KSBT.Core.LowHealth.Disable then
@@ -115,15 +109,11 @@ end
 ------------------------------------------------------------------------
 function Addon:OnDisable()
     if KSBT.Parser then
-        if KSBT.Parser.Incoming and KSBT.Parser.Incoming.Disable then
-            KSBT.Parser.Incoming:Disable()
-        end
-        -- Outgoing not active in this release
-        if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then
-            KSBT.Parser.Cooldowns:Disable()
-        end
         if KSBT.Parser.CombatLog and KSBT.Parser.CombatLog.Disable then
             KSBT.Parser.CombatLog:Disable()
+        end
+        if KSBT.Parser.Cooldowns and KSBT.Parser.Cooldowns.Disable then
+            KSBT.Parser.Cooldowns:Disable()
         end
     end
 
@@ -171,7 +161,7 @@ function Addon:HandleSlashCommand(input)
         self:TestDisplay()
         return
 
-    -- Diagnostic: dump raw UNIT_COMBAT + UNIT_SPELLCAST_SUCCEEDED to chat
+    -- Diagnostic: dump CLEU events to chat
     elseif cmd == "probeevents" then
         if rest and rest:lower() == "stop" then
             self:StopEventProbe(false)
@@ -180,21 +170,12 @@ function Addon:HandleSlashCommand(input)
         end
         return
 
-    -- Diagnostic: test if COMBAT_TEXT_UPDATE fires in this build
-    elseif cmd == "probecombattext" then
-        if rest and rest:lower() == "stop" then
-            self:StopCombatTextProbe(false)
-        else
-            self:StartCombatTextProbe(rest)
-        end
-        return
     end
 
     self:Print("Unknown command: " .. cmd)
     self:Print("Usage: /ksbt [minimap | debug 0-3 | reset | version]")
     self:Print("  testdisplay              — fire test text into the Outgoing area")
-    self:Print("  probeevents [sec|stop]   — dump UNIT_COMBAT events to chat")
-    self:Print("  probecombattext [sec|stop] — test if COMBAT_TEXT_UPDATE fires")
+    self:Print("  probeevents [sec|stop]   — dump CLEU events to chat")
 end
 
 ------------------------------------------------------------------------
