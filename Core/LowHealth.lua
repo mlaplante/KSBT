@@ -57,12 +57,10 @@ local function OnCombatEnd()
     LowHealth._fired = false
 end
 
--- Register events at load time to avoid taint from AceAddon:OnEnable call chain.
+-- Defer RegisterEvent via C_Timer.After(0) to avoid taint.
 do
     local f = CreateFrame("Frame")
     LowHealth._frame = f
-    f:RegisterEvent("UNIT_HEALTH")
-    f:RegisterEvent("PLAYER_REGEN_ENABLED")
     f:SetScript("OnEvent", function(_, event, unit)
         if not LowHealth._enabled then return end
         if event == "UNIT_HEALTH" and unit == "player" then
@@ -70,6 +68,10 @@ do
         elseif event == "PLAYER_REGEN_ENABLED" then
             OnCombatEnd()
         end
+    end)
+    C_Timer.After(0, function()
+        f:RegisterEvent("UNIT_HEALTH")
+        f:RegisterEvent("PLAYER_REGEN_ENABLED")
     end)
 end
 

@@ -75,15 +75,17 @@ local function SeedCooldownStates()
     end
 end
 
--- Register event at load time to avoid taint from AceAddon:OnEnable call chain.
+-- Defer RegisterEvent via C_Timer.After(0) to avoid taint.
 do
     local f = CreateFrame("Frame")
     Cooldowns._frame = f
-    f:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     f:SetScript("OnEvent", function()
         if Cooldowns._enabled then
             CheckAllTracked()
         end
+    end)
+    C_Timer.After(0, function()
+        f:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     end)
 end
 
