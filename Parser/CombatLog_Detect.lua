@@ -19,8 +19,8 @@ local Addon     = KSBT.Addon
 
 CombatLog._enabled = CombatLog._enabled or false
 
-local _cleuRegistered = false
-local _ucRegistered   = false
+CombatLog._cleuRegistered = false
+CombatLog._ucRegistered   = false
 
 -- Resolve the correct API: Midnight moved it to C_CombatLog namespace.
 local GetCombatLogInfo = CombatLogGetCurrentEventInfo
@@ -325,7 +325,7 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
         -- UNIT_COMBAT "target" fires for ALL sources hitting the target.
         -- Only emit if CLEU marked this as our hit, OR if CLEU is not
         -- registered (no gating available, accept false positives).
-        if _cleuRegistered and not _cleuOutgoingMark then return end
+        if CombatLog._cleuRegistered and not _cleuOutgoingMark then return end
         _cleuOutgoingMark = false
 
         -- Attach last-cast spell info if recent enough (1.5s window).
@@ -397,12 +397,12 @@ _spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
 end)
 
 local function TryRegisterCLEU()
-    if _cleuRegistered then return end
+    if CombatLog._cleuRegistered then return end
     local ok = pcall(function()
         _cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     end)
     if ok then
-        _cleuRegistered = true
+        CombatLog._cleuRegistered = true
         Debug(1, "Parser.CombatLog: CLEU registered successfully")
     else
         C_Timer.After(0.5, TryRegisterCLEU)
@@ -410,7 +410,7 @@ local function TryRegisterCLEU()
 end
 
 local function TryRegisterUnitCombat()
-    if _ucRegistered then return end
+    if CombatLog._ucRegistered then return end
     local ok = pcall(function()
         if _ucFrame.RegisterUnitEvent then
             -- Register for both "player" (incoming) and "target" (outgoing).
@@ -420,7 +420,7 @@ local function TryRegisterUnitCombat()
         end
     end)
     if ok then
-        _ucRegistered = true
+        CombatLog._ucRegistered = true
         Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
     else
         C_Timer.After(0.5, TryRegisterUnitCombat)
@@ -458,8 +458,8 @@ do
     end)
     if ok then
         regenFrame:SetScript("OnEvent", function()
-            if not _cleuRegistered then TryRegisterCLEU() end
-            if not _ucRegistered then TryRegisterUnitCombat() end
+            if not CombatLog._cleuRegistered then TryRegisterCLEU() end
+            if not CombatLog._ucRegistered then TryRegisterUnitCombat() end
             if not _spellRegistered then TryRegisterSpellcast() end
         end)
     end

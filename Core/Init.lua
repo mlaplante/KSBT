@@ -187,12 +187,22 @@ function Addon:HandleSlashCommand(input)
         end
         return
 
+    -- Diagnostic: show event registration status + live UNIT_COMBAT target probe
+    elseif cmd == "probeout" then
+        if rest and rest:lower() == "stop" then
+            self:StopOutgoingProbe()
+        else
+            self:StartOutgoingProbe(rest)
+        end
+        return
+
     end
 
     self:Print("Unknown command: " .. cmd)
     self:Print("Usage: /ksbt [minimap | debug 0-3 | reset | version]")
     self:Print("  testdisplay              — fire test text into the Outgoing area")
     self:Print("  probeevents [sec|stop]   — dump CLEU events to chat")
+    self:Print("  probeout [sec|stop]      — probe outgoing events (UNIT_COMBAT target)")
 end
 
 ------------------------------------------------------------------------

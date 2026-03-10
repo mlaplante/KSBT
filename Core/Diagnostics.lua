@@ -175,3 +175,89 @@ function Addon:StopEventProbe(auto)
     _eventProbeTimer = nil
     self:Print("Event probe " .. (auto and "ended (timeout)." or "stopped."))
 end
+
+------------------------------------------------------------------------
+-- Outgoing Probe (#3)
+-- Reports registration status and dumps UNIT_COMBAT "target" events
+-- to chat. Helps diagnose why outgoing combat text isn't working.
+------------------------------------------------------------------------
+local _outProbeFrame = nil
+local _outProbeTimer = nil
+
+function Addon:StartOutgoingProbe(secondsStr)
+    local seconds = tonumber(secondsStr) or 30
+    if seconds < 5 then seconds = 5 end
+    if seconds > 60 then seconds = 60 end
+
+    if _outProbeFrame then
+        self:Print("Outgoing probe already running. Use '/ksbt probeout stop'.")
+        return
+    end
+
+    -- Report current registration status
+    local cl = KSBT.Parser and KSBT.Parser.CombatLog
+    self:Print("|cffff9900=== Outgoing Diagnostic ===|r")
+    self:Print("  CLEU registered: " .. tostring(cl and cl._cleuRegistered or "N/A"))
+    self:Print("  UNIT_COMBAT registered: " .. tostring(cl and cl._ucRegistered or "N/A"))
+    self:Print("  CombatLog enabled: " .. tostring(cl and cl._enabled or "N/A"))
+    self:Print("  CombatLogGetCurrentEventInfo: " .. tostring(CombatLogGetCurrentEventInfo ~= nil))
+    self:Print("  C_CombatLog.GetCurrentEventInfo: " .. tostring(C_CombatLog and C_CombatLog.GetCurrentEventInfo ~= nil or false))
+    self:Print("  RegisterUnitEvent exists: " .. tostring(CreateFrame("Frame").RegisterUnitEvent ~= nil))
+
+    -- Create a fresh probe frame for UNIT_COMBAT on target
+    _outProbeFrame = CreateFrame("Frame")
+    _outProbeFrame:SetScript("OnEvent", function(_, event, unit, action, indicator, amount, school)
+        if event == "UNIT_COMBAT" then
+            print(("|cff00ff00KSBT-OutProbe|r UC unit=%s action=%s ind=%s amt=%s school=%s"):format(
+                tostring(unit), tostring(action), tostring(indicator),
+                tostring(amount), tostring(school)))
+        elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+            print(("|cff00ff00KSBT-OutProbe|r SPELL unit=%s spellId=%s"):format(
+                tostring(unit), tostring(select(3, ...))))
+        end
+    end)
+
+    -- Try multiple registration approaches and report which works
+    local ucOk = pcall(function()
+        if _outProbeFrame.RegisterUnitEvent then
+            _outProbeFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+        else
+            _outProbeFrame:RegisterEvent("UNIT_COMBAT")
+        end
+    end)
+    self:Print("  Probe UNIT_COMBAT register: " .. (ucOk and "|cff00ff00OK|r" or "|cffff4444FAILED|r"))
+
+    -- Also try registering UNIT_COMBAT for target only
+    if not ucOk then
+        local ucOk2 = pcall(function()
+            _outProbeFrame:RegisterUnitEvent("UNIT_COMBAT", "target")
+        end)
+        self:Print("  Probe UC target-only register: " .. (ucOk2 and "|cff00ff00OK|r" or "|cffff4444FAILED|r"))
+    end
+
+    -- Try plain RegisterEvent as fallback
+    if not ucOk then
+        local ucOk3 = pcall(function()
+            _outProbeFrame:RegisterEvent("UNIT_COMBAT")
+        end)
+        self:Print("  Probe UC plain register: " .. (ucOk3 and "|cff00ff00OK|r" or "|cffff4444FAILED|r"))
+    end
+
+    self:Print(("Outgoing probe STARTED for %ds. Target something and attack."):format(seconds))
+
+    _outProbeTimer = C_Timer.After(seconds, function()
+        Addon:StopOutgoingProbe(true)
+    end)
+end
+
+function Addon:StopOutgoingProbe(auto)
+    if not _outProbeFrame then
+        self:Print("Outgoing probe is not running.")
+        return
+    end
+    _outProbeFrame:UnregisterAllEvents()
+    _outProbeFrame:SetScript("OnEvent", nil)
+    _outProbeFrame = nil
+    _outProbeTimer = nil
+    self:Print("Outgoing probe " .. (auto and "ended (timeout)." or "stopped."))
+end
