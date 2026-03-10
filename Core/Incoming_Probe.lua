@@ -40,11 +40,12 @@ Probe._seenSchoolsList = Probe._seenSchoolsList or {}
 --   true = observed
 --   false = observed unavailable/impossible in current source
 Probe.cap = Probe.cap or {
-    source = "UNIT_COMBAT",
-    hasAmount = true, -- required
-    hasFlagText = nil,
-    hasSchool = nil,
-    hasPeriodic = false -- UNIT_COMBAT does not provide reliable periodic classification
+    source = "CLEU",
+    hasAmount = true,
+    hasFlagText = true,
+    hasSchool = true,
+    hasPeriodic = true,
+    hasCrit = true,
 }
 
 local function Now() return (GetTime and GetTime()) or 0 end
@@ -96,7 +97,7 @@ function Probe:ResetCapture()
 
     self.cap.hasFlagText = nil
     self.cap.hasSchool = nil
-    -- hasPeriodic remains false by design for UNIT_COMBAT.
+    -- hasPeriodic is always true with CLEU source.
 
     self._seenSchoolMasks = {}
     self._seenSchoolsList = {}
@@ -280,7 +281,6 @@ function Probe:OnIncomingDetected(evt)
 end
 
 function Probe:ProcessIncomingEvent(evt, isReplay)
-    -- Respect user toggles + thresholds.
     if not KSBT.db or not KSBT.db.profile or not KSBT.db.profile.incoming then
         return
     end
@@ -293,42 +293,55 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
     local conf = (kind == "damage") and prof.damage or prof.healing
     if not conf or not conf.enabled then return end
 
-    local amt = tonumber(evt.amount) or 0
-    if amt <= 0 then return end
+    -- Secret value handling: skip tonumber and thresholds
+    local isSecret = evt.isSecret or (issecretvalue and issecretvalue(evt.amount) or false)
+    local amt
+    if isSecret then
+        amt = evt.amount  -- pass through as-is; tostring() works via metamethod
+    else
+        amt = tonumber(evt.amount) or 0
+        if amt <= 0 then return end
 
-    local minT = tonumber(conf.minThreshold) or 0
-    if amt < minT then return end
+        local minT = tonumber(conf.minThreshold) or 0
+        if amt < minT then return end
+    end
 
     local area = conf.scrollArea or "Incoming"
 
-    -- Format
-    local text = tostring(math.floor(amt + 0.5))
+    -- Format display text
+    local text
+    if isSecret then
+        text = tostring(amt)
+    else
+        text = tostring(math.floor(amt + 0.5))
+    end
 
-    -- Optional flags
-    if kind == "damage" and prof.damage.showFlags and type(evt.flagText) ==
+    -- Optional flags (legacy support)
+    if kind == "damage" and conf.showFlags and type(evt.flagText) ==
         "string" and evt.flagText ~= "" then
         text = text .. " " .. evt.flagText
     end
 
-    -- Color
-    -- For UI/UX testing, we want damage and healing to be visually distinguishable even
-    -- before the real engine can enrich events.
-    --
-    -- Rules (probe-only):
-    --   1) If "Use School Colors" is enabled and we have a single-bit schoolMask, colorize.
-    --      (Applies to both damage and healing.)
-    --   2) Otherwise, if the user set a non-white customColor, respect it.
-    --   3) Otherwise, fall back to kind-based defaults (damage=red, healing=green).
+    -- Color: crit > school > custom > default
     local color = nil
+    local isCrit = evt.isCrit == true
 
-    if prof.useSchoolColors and type(evt.schoolMask) == "number" then
+    if isCrit then
+        if kind == "heal" then
+            color = {r = 0.40, g = 1.00, b = 0.80}
+        else
+            color = {r = 1.00, g = 0.65, b = 0.00}
+        end
+        text = text .. "!"
+    end
+
+    if not color and prof.useSchoolColors and type(evt.schoolMask) == "number" then
         color = SchoolColorFromMask(evt.schoolMask)
     end
 
     local c = prof.customColor
     local hasCustom = (type(c) == "table") and (type(c.r) == "number") and
                           (type(c.g) == "number") and (type(c.b) == "number")
-
     local customIsWhite = hasCustom and (c.r == 1 and c.g == 1 and c.b == 1)
 
     if not color and hasCustom and not customIsWhite then
@@ -343,12 +356,13 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
         end
     end
 
-    -- Meta is reserved for the real engine.
     local meta = {
         probe = true,
         replay = isReplay == true,
         kind = kind,
-        school = evt.schoolMask
+        school = evt.schoolMask,
+        isCrit = isCrit,
+        isPeriodic = evt.isPeriodic == true,
     }
 
     if KSBT.DisplayText then
