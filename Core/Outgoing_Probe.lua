@@ -2,7 +2,7 @@
 -- Kroth's Scrolling Battle Text - Outgoing Probe / Replay Harness (UI/UX Validation)
 --
 -- Purpose:
---   - Capture *real* outgoing events (from Parser.Outgoing) into a ring buffer
+--   - Capture *real* outgoing events (from Parser.CombatLog) into a ring buffer
 --   - Replay captured events through display routing to validate the Outgoing UI
 --
 -- Scope rules for this probe:
@@ -270,7 +270,7 @@ function Probe:GetStatusLine()
     return cap
 end
 
--- evt contract from Parser.Outgoing:
+-- evt contract from Parser.CombatLog:
 -- {
 --   ts=number,
 --   kind="damage"|"heal",

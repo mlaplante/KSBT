@@ -1138,7 +1138,7 @@ function KSBT.BuildTab_Incoming()
             probeStart10 = {
                 type  = "execute",
                 name  = "Capture 10s",
-                desc  = "Capture real incoming UNIT_COMBAT events for 10 seconds and emit them live.",
+                desc  = "Capture real incoming CLEU events for 10 seconds and emit them live.",
                 order = 32,
                 func  = function()
                     local p = KSBT.Core and KSBT.Core.IncomingProbe
@@ -1148,7 +1148,7 @@ function KSBT.BuildTab_Incoming()
             probeStart30 = {
                 type  = "execute",
                 name  = "Capture 30s",
-                desc  = "Capture real incoming UNIT_COMBAT events for 30 seconds and emit them live.",
+                desc  = "Capture real incoming CLEU events for 30 seconds and emit them live.",
                 order = 33,
                 func  = function()
                     local p = KSBT.Core and KSBT.Core.IncomingProbe

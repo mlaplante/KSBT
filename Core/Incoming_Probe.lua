@@ -2,7 +2,7 @@
 -- Kroth's Scrolling Battle Text - Incoming Probe / Replay Harness (UI/UX Validation)
 --
 -- Purpose:
---   - Capture *real* incoming events (from Parser.Incoming) into a ring buffer
+--   - Capture *real* incoming events (from Parser.CombatLog) into a ring buffer
 --   - Derive a small capabilities report based on observed fields
 --   - Replay captured events through Display routing to validate UI/UX
 --
@@ -250,7 +250,7 @@ function Probe:PrintCapabilityReport()
     end
 end
 
--- Called by Parser.Incoming. This function must be safe: no identity ops.
+-- Called by Parser.CombatLog. This function must be safe: no identity ops.
 -- evt = {
 --   ts=number, kind="damage"|"heal", amount=number,
 --   flagText=string|nil, schoolMask=number|nil
