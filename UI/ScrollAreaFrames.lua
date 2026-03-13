@@ -666,9 +666,15 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
             yOffset = 0
         end
 
+        -- Crit shake: decaying horizontal sine oscillation
+        local shakeX = 0
+        if isCrit then
+            shakeX = math.sin(elapsed * 25) * 3 * (1 - progress)
+        end
+
         -- Apply position offset from starting point
         fs:ClearAllPoints()
-        fs:SetPoint(startPoint, parent, startPoint, xOffset, yOffset)
+        fs:SetPoint(startPoint, parent, startPoint, xOffset + shakeX, yOffset)
 
         -- Alpha fade
         local alpha = fontAlpha
