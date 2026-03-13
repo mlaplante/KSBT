@@ -402,11 +402,18 @@ function KSBT.TestScrollArea(areaName)
         "Heal +842",
     }
 
+    -- Mark third event as crit for preview
+    local mockCrits = { false, false, true }
     for i, text in ipairs(mockEvents) do
-        -- Use C_Timer.After for staggered firing (0.0, 0.3, 0.6 seconds)
+        local crit = mockCrits[i] or false
+        local mockText = crit and (text .. "!") or text
+        local mockColor = nil  -- uses ACCENT default
+        if crit then
+            mockColor = {r = 1.00, g = 0.65, b = 0.00}  -- crit gold
+        end
         C_Timer.After((i - 1) * 0.3, function()
-            KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                              fontAlpha, anchorH, dirMult, duration)
+            KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize, outlineFlag,
+                              fontAlpha, anchorH, dirMult, duration, mockColor, crit)
         end)
     end
 end
@@ -453,13 +460,20 @@ local function FireAllAreasOnce()
             local baseDuration = 2.0
             local duration = baseDuration / (area.animSpeed or 1.0)
 
-            -- Fire 3 mock events with stagger
+            -- Fire 3 mock events with stagger; third is a crit for preview
+            local mockCrits = { false, false, true }
             for i = 1, 3 do
                 local mockEvent = mockEvents[((i - 1) % #mockEvents) + 1]
-                
+                local crit = mockCrits[i] or false
+                local mockText = crit and (mockEvent.text .. "!") or mockEvent.text
+                local mockColor = nil
+                if crit then
+                    mockColor = {r = 1.00, g = 0.65, b = 0.00}
+                end
+
                 C_Timer.After((i - 1) * 0.3, function()
-                    KSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
-                                      outlineFlag, fontAlpha, anchorH, dirMult, duration)
+                    KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize,
+                                      outlineFlag, fontAlpha, anchorH, dirMult, duration, mockColor, crit)
                 end)
             end
         end
