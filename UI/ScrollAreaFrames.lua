@@ -618,6 +618,11 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
     local totalDistance = area.height
     local elapsed = 0
 
+    -- Critical hits linger 2x longer
+    if isCrit then
+        duration = duration * 2
+    end
+
     -- Use OnUpdate for animation
     local animFrame = AcquireAnimFrame()
     animFrame:SetScript("OnUpdate", function(self, dt)
