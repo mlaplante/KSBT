@@ -558,8 +558,9 @@ end
 ------------------------------------------------------------------------
 -- @param color        (table|nil) Optional {r,g,b,a} text color. If nil,
 --                      uses KSBT.COLORS.ACCENT.
+-- @param isCrit       (boolean) If true, doubles duration and adds decaying shake.
 function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                           fontAlpha, anchorH, dirMult, duration, color)
+                           fontAlpha, anchorH, dirMult, duration, color, isCrit)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
     local parentKey = areaName
