@@ -402,11 +402,18 @@ function KSBT.TestScrollArea(areaName)
         "Heal +842",
     }
 
+    -- Mark third event as crit for preview
+    local mockCrits = { false, false, true }
     for i, text in ipairs(mockEvents) do
-        -- Use C_Timer.After for staggered firing (0.0, 0.3, 0.6 seconds)
+        local crit = mockCrits[i] or false
+        local mockText = crit and (text .. "!") or text
+        local mockColor = nil  -- uses ACCENT default
+        if crit then
+            mockColor = {r = 1.00, g = 0.65, b = 0.00}  -- crit gold
+        end
         C_Timer.After((i - 1) * 0.3, function()
-            KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                              fontAlpha, anchorH, dirMult, duration)
+            KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize, outlineFlag,
+                              fontAlpha, anchorH, dirMult, duration, mockColor, crit)
         end)
     end
 end
@@ -453,13 +460,20 @@ local function FireAllAreasOnce()
             local baseDuration = 2.0
             local duration = baseDuration / (area.animSpeed or 1.0)
 
-            -- Fire 3 mock events with stagger
+            -- Fire 3 mock events with stagger; third is a crit for preview
+            local mockCrits = { false, false, true }
             for i = 1, 3 do
                 local mockEvent = mockEvents[((i - 1) % #mockEvents) + 1]
-                
+                local crit = mockCrits[i] or false
+                local mockText = crit and (mockEvent.text .. "!") or mockEvent.text
+                local mockColor = nil
+                if crit then
+                    mockColor = {r = 1.00, g = 0.65, b = 0.00}
+                end
+
                 C_Timer.After((i - 1) * 0.3, function()
-                    KSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
-                                      outlineFlag, fontAlpha, anchorH, dirMult, duration)
+                    KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize,
+                                      outlineFlag, fontAlpha, anchorH, dirMult, duration, mockColor, crit)
                 end)
             end
         end
@@ -558,8 +572,9 @@ end
 ------------------------------------------------------------------------
 -- @param color        (table|nil) Optional {r,g,b,a} text color. If nil,
 --                      uses KSBT.COLORS.ACCENT.
+-- @param isCrit       (boolean) If true, doubles duration and adds decaying shake.
 function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                           fontAlpha, anchorH, dirMult, duration, color)
+                           fontAlpha, anchorH, dirMult, duration, color, isCrit)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
     local parentKey = areaName
@@ -617,6 +632,11 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
     local totalDistance = area.height
     local elapsed = 0
 
+    -- Critical hits linger 2x longer
+    if isCrit then
+        duration = duration * 2
+    end
+
     -- Use OnUpdate for animation
     local animFrame = AcquireAnimFrame()
     animFrame:SetScript("OnUpdate", function(self, dt)
@@ -660,9 +680,15 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
             yOffset = 0
         end
 
+        -- Crit shake: decaying horizontal sine oscillation
+        local shakeX = 0
+        if isCrit then
+            shakeX = math.sin(elapsed * 25) * 3 * (1 - progress)
+        end
+
         -- Apply position offset from starting point
         fs:ClearAllPoints()
-        fs:SetPoint(startPoint, parent, startPoint, xOffset, yOffset)
+        fs:SetPoint(startPoint, parent, startPoint, xOffset + shakeX, yOffset)
 
         -- Alpha fade
         local alpha = fontAlpha

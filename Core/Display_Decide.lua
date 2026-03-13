@@ -62,8 +62,9 @@ function Display:Emit(areaName, text, color, meta)
     if speed <= 0 then speed = 1.0 end
     local duration = 1.2 / speed
 
+    local isCrit = meta and meta.isCrit or false
     KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag, fontAlpha,
-        anchorH, dirMult, duration, color)
+        anchorH, dirMult, duration, color, isCrit)
 end
 
 -- Shared school color resolver. Returns {r,g,b} or nil.
