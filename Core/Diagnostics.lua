@@ -205,7 +205,7 @@ function Addon:StartOutgoingProbe(secondsStr)
                 tostring(amount), tostring(school)))
         elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
             print(("|cff00ff00KSBT-OutProbe|r SPELL unit=%s spellId=%s"):format(
-                tostring(unit), tostring(select(3, ...))))
+                tostring(unit), tostring(indicator)))
         end
     end)
 
