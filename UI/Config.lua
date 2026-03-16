@@ -390,6 +390,10 @@ function KSBT.EnsurePopupsOnTop(anchorFrame)
     if not StaticPopup_Show then return end
 
     hooksecurefunc("StaticPopup_Show", function()
+        -- Only raise popups when our config window is open; modifying
+        -- Blizzard's StaticPopup frames from addon code taints them,
+        -- which blocks protected functions like UpgradeItem().
+        if not anchorFrame or not anchorFrame:IsShown() then return end
         for i = 1, (STATICPOPUP_NUMDIALOGS or 4) do
             local f = _G["StaticPopup" .. i]
             if f and f:IsShown() then
