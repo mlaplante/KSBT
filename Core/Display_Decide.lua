@@ -62,6 +62,19 @@ function Display:Emit(areaName, text, color, meta)
     if speed <= 0 then speed = 1.0 end
     local duration = 1.2 / speed
 
+    -- Prepend spell icon if enabled and spellId is available
+    local general = profile and profile.general
+    if general and general.showSpellIcons and meta and meta.spellId then
+        local iconSize = general.spellIconSize or 16
+        local GetSpellTexture = C_Spell and C_Spell.GetSpellTexture or GetSpellTexture
+        if GetSpellTexture then
+            local icon = GetSpellTexture(meta.spellId)
+            if icon then
+                text = string.format("|T%s:%d|t %s", icon, iconSize, text)
+            end
+        end
+    end
+
     local isCrit = meta and meta.isCrit or false
     KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag, fontAlpha,
         anchorH, dirMult, duration, color, isCrit)

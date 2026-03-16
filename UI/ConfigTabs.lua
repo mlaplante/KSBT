@@ -113,6 +113,38 @@ function KSBT.BuildTab_General()
                 end,
             },
 
+            headerIcons = {
+                type  = "header",
+                name  = "Spell Icons",
+                order = 5,
+            },
+            showSpellIcons = {
+                type  = "toggle",
+                name  = "Show Spell Icons",
+                desc  = "Display spell icons inline with scrolling combat text.",
+                width = "full",
+                order = 6,
+                get   = function() return KSBT.db.profile.general.showSpellIcons end,
+                set   = function(_, val)
+                    KSBT.db.profile.general.showSpellIcons = val
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
+                end,
+            },
+            spellIconSize = {
+                type   = "range",
+                name   = "Icon Size",
+                desc   = "Size of inline spell icons in pixels.",
+                order  = 7,
+                min    = 10,
+                max    = 32,
+                step   = 1,
+                hidden = function() return not KSBT.db.profile.general.showSpellIcons end,
+                get    = function() return KSBT.db.profile.general.spellIconSize end,
+                set    = function(_, val)
+                    KSBT.db.profile.general.spellIconSize = val
+                end,
+            },
+
             headerFont = {
                 type  = "header",
                 name  = "Master Font",

@@ -26,6 +26,10 @@ KSBT.DEFAULTS = {
                 angle = 220,
             },
 
+            -- Show spell icons inline with scrolling text
+            showSpellIcons = true,
+            spellIconSize  = 16,    -- pixels
+
             -- Master font settings
             font = {
                 face    = "Friz Quadrata TT",   -- Default WoW font
