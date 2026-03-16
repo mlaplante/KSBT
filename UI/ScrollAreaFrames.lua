@@ -9,6 +9,19 @@ local ADDON_NAME, KSBT = ...
 local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
+-- Percentage ↔ pixel helpers (offsets stored as % of screen size)
+------------------------------------------------------------------------
+local function PctToPixels(xPct, yPct)
+    return (xPct / 100) * UIParent:GetWidth(),
+           (yPct / 100) * UIParent:GetHeight()
+end
+
+local function PixelsToPct(xPx, yPx)
+    return (xPx / UIParent:GetWidth()) * 100,
+           (yPx / UIParent:GetHeight()) * 100
+end
+
+------------------------------------------------------------------------
 -- Constants for visualization frames
 ------------------------------------------------------------------------
 
@@ -134,8 +147,9 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     -- Create the frame anchored to screen center (UIParent CENTER)
     local frame = CreateFrame("Frame", "KSBT_AreaViz_" .. areaName, UIParent,
         "BackdropTemplate")
+    local pxX, pxY = PctToPixels(areaData.xOffset, areaData.yOffset)
     frame:SetSize(areaData.width, areaData.height)
-    frame:SetPoint("CENTER", UIParent, "CENTER", areaData.xOffset, areaData.yOffset)
+    frame:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
     -- Keep frames above the config window while unlocked (new areas must be visible immediately)
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetFrameLevel(1000)
@@ -160,7 +174,7 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     local offsetLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     offsetLabel:SetPoint("TOP", label, "BOTTOM", 0, -4)
     offsetLabel:SetTextColor(0.8, 0.8, 0.8, 0.8)
-    offsetLabel:SetText(string.format("X: %d  Y: %d", areaData.xOffset, areaData.yOffset))
+    offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%", areaData.xOffset, areaData.yOffset))
     frame.offsetLabel = offsetLabel
 
     -- Make the frame draggable
@@ -178,36 +192,40 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
 
-        -- Calculate new offset from UIParent CENTER
+        -- Calculate new offset from UIParent CENTER, convert to percentage
         local centerX = UIParent:GetWidth() / 2
         local centerY = UIParent:GetHeight() / 2
         local frameX = self:GetLeft() + (self:GetWidth() / 2)
         local frameY = self:GetBottom() + (self:GetHeight() / 2)
 
-        local newXOffset = math.floor(frameX - centerX + 0.5)
-        local newYOffset = math.floor(frameY - centerY + 0.5)
+        local newXPct, newYPct = PixelsToPct(frameX - centerX, frameY - centerY)
 
-        -- Clamp to slider range
-        newXOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
-                     math.min(KSBT.SCROLL_OFFSET_MAX, newXOffset))
-        newYOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
-                     math.min(KSBT.SCROLL_OFFSET_MAX, newYOffset))
+        -- Round to 1 decimal place for clean saved values
+        newXPct = math.floor(newXPct * 10 + 0.5) / 10
+        newYPct = math.floor(newYPct * 10 + 0.5) / 10
+
+        -- Clamp to slider range (percentage)
+        newXPct = math.max(KSBT.SCROLL_OFFSET_MIN,
+                  math.min(KSBT.SCROLL_OFFSET_MAX, newXPct))
+        newYPct = math.max(KSBT.SCROLL_OFFSET_MIN,
+                  math.min(KSBT.SCROLL_OFFSET_MAX, newYPct))
 
         -- Update the saved profile data
         local area = KSBT.db.profile.scrollAreas[self.areaName]
         if area then
-            area.xOffset = newXOffset
-            area.yOffset = newYOffset
+            area.xOffset = newXPct
+            area.yOffset = newYPct
         end
 
         -- Snap the frame to the clamped position (in case we clamped)
+        local pxX, pxY = PctToPixels(newXPct, newYPct)
         self:ClearAllPoints()
-        self:SetPoint("CENTER", UIParent, "CENTER", newXOffset, newYOffset)
+        self:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
 
         -- Update the offset readout label immediately
         if self.offsetLabel then
-            self.offsetLabel:SetText(string.format("X: %d  Y: %d",
-                newXOffset, newYOffset))
+            self.offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%",
+                newXPct, newYPct))
         end
 
         -- If a parent frame exists for this area, it will be repositioned on next FireTestText call.
@@ -304,14 +322,15 @@ function KSBT.UpdateScrollAreaFrames()
         if areaData then
             -- Update size
             frame:SetSize(areaData.width, areaData.height)
-            
-            -- Update position
+
+            -- Update position (convert percentage to pixels)
+            local pxX, pxY = PctToPixels(areaData.xOffset, areaData.yOffset)
             frame:ClearAllPoints()
-            frame:SetPoint("CENTER", UIParent, "CENTER", areaData.xOffset, areaData.yOffset)
-            
+            frame:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
+
             -- Update offset label
             if frame.offsetLabel then
-                frame.offsetLabel:SetText(string.format("X: %d  Y: %d",
+                frame.offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%",
                     areaData.xOffset, areaData.yOffset))
             end
         end
@@ -590,10 +609,11 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
         KSBT._testParentFrames[parentKey] = parent
     end
     
-    -- Position and size the parent for this area
+    -- Position and size the parent for this area (convert percentage to pixels)
+    local pxX, pxY = PctToPixels(area.xOffset, area.yOffset)
     parent:ClearAllPoints()
     parent:SetSize(area.width, area.height)
-    parent:SetPoint("CENTER", UIParent, "CENTER", area.xOffset, area.yOffset)
+    parent:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
     parent:Show()
 
     -- Acquire a pooled FontString (or create one if pool is empty)
