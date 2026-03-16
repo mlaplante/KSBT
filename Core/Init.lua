@@ -5,23 +5,6 @@
 local ADDON_NAME, KSBT = ...
 
 ------------------------------------------------------------------------
--- Suppress ADDON_ACTION_FORBIDDEN popup for this addon.
--- Midnight's taint system triggers false positives on RegisterEvent;
--- the pcall+retry loop in our parsers handles it gracefully.
-------------------------------------------------------------------------
-if StaticPopup_Show then
-    local origStaticPopupShow = StaticPopup_Show
-    StaticPopup_Show = function(which, text_arg1, ...)
-        if which == "ADDON_ACTION_FORBIDDEN"
-        and type(text_arg1) == "string"
-        and text_arg1:find("KBST", 1, true) then
-            return nil
-        end
-        return origStaticPopupShow(which, text_arg1, ...)
-    end
-end
-
-------------------------------------------------------------------------
 -- Create the Ace3 addon object
 ------------------------------------------------------------------------
 KSBT.Addon = LibStub("AceAddon-3.0"):NewAddon("KrothSBT", "AceConsole-3.0")
