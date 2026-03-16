@@ -142,17 +142,24 @@ function Addon:StartEventProbe(secondsStr)
             .. argStr)
     end)
 
-    -- pcall + retry for RegisterEvent (Midnight protected-call phases)
+    -- pcall + retry for RegisterEvent (guarded against combat lockdown)
     local registered = false
+    local attempts = 0
     local function tryRegister()
         if registered then return end
+        if InCombatLockdown() then return end
+        attempts = attempts + 1
+        if attempts > 5 then
+            self:Print("CLEU probe registration failed (event may not exist in this client)")
+            return
+        end
         local ok = pcall(function()
             _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
         end)
         if ok then
             registered = true
         else
-            C_Timer.After(0.5, tryRegister)
+            C_Timer.After(2, tryRegister)
         end
     end
     tryRegister()

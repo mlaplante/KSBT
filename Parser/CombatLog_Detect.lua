@@ -396,8 +396,18 @@ _spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
     end
 end)
 
+-- Max attempts prevents infinite retry for events removed in Midnight.
+local MAX_REGISTER_ATTEMPTS = 5
+
+local _cleuAttempts = 0
 local function TryRegisterCLEU()
     if CombatLog._cleuRegistered then return end
+    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
+    _cleuAttempts = _cleuAttempts + 1
+    if _cleuAttempts > MAX_REGISTER_ATTEMPTS then
+        Debug(1, "Parser.CombatLog: CLEU registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts (event may not exist)")
+        return
+    end
     local ok = pcall(function()
         _cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     end)
@@ -405,12 +415,19 @@ local function TryRegisterCLEU()
         CombatLog._cleuRegistered = true
         Debug(1, "Parser.CombatLog: CLEU registered successfully")
     else
-        C_Timer.After(0.5, TryRegisterCLEU)
+        C_Timer.After(2, TryRegisterCLEU)
     end
 end
 
+local _ucAttempts = 0
 local function TryRegisterUnitCombat()
     if CombatLog._ucRegistered then return end
+    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
+    _ucAttempts = _ucAttempts + 1
+    if _ucAttempts > MAX_REGISTER_ATTEMPTS then
+        Debug(1, "Parser.CombatLog: UNIT_COMBAT registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts (event may not exist)")
+        return
+    end
     local ok = pcall(function()
         if _ucFrame.RegisterUnitEvent then
             -- Register for both "player" (incoming) and "target" (outgoing).
@@ -423,13 +440,20 @@ local function TryRegisterUnitCombat()
         CombatLog._ucRegistered = true
         Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
     else
-        C_Timer.After(0.5, TryRegisterUnitCombat)
+        C_Timer.After(2, TryRegisterUnitCombat)
     end
 end
 
 local _spellRegistered = false
+local _spellAttempts = 0
 local function TryRegisterSpellcast()
     if _spellRegistered then return end
+    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
+    _spellAttempts = _spellAttempts + 1
+    if _spellAttempts > MAX_REGISTER_ATTEMPTS then
+        Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts")
+        return
+    end
     local ok = pcall(function()
         if _spellFrame.RegisterUnitEvent then
             _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
@@ -441,7 +465,7 @@ local function TryRegisterSpellcast()
         _spellRegistered = true
         Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
     else
-        C_Timer.After(0.5, TryRegisterSpellcast)
+        C_Timer.After(2, TryRegisterSpellcast)
     end
 end
 
@@ -458,9 +482,9 @@ do
     end)
     if ok then
         regenFrame:SetScript("OnEvent", function()
-            if not CombatLog._cleuRegistered then TryRegisterCLEU() end
-            if not CombatLog._ucRegistered then TryRegisterUnitCombat() end
-            if not _spellRegistered then TryRegisterSpellcast() end
+            if not CombatLog._cleuRegistered and _cleuAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterCLEU() end
+            if not CombatLog._ucRegistered and _ucAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterUnitCombat() end
+            if not _spellRegistered and _spellAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterSpellcast() end
         end)
     end
 end
