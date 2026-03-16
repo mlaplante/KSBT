@@ -363,21 +363,18 @@ local function HandleSpellcastSucceeded(unit, _, spellId)
 end
 
 ------------------------------------------------------------------------
--- Event Registration (pcall + retry for Midnight protected phases)
+-- Event Registration
+--
+-- Register at file load time (trusted execution context). Never use
+-- pcall + retry for RegisterEvent — pcall does NOT suppress WoW's
+-- ADDON_ACTION_FORBIDDEN; each attempt generates taint that spreads
+-- to NPC/vendor frames.
+--
+-- CLEU: skip entirely if the API doesn't exist (removed in Midnight).
+-- UNIT_COMBAT / UNIT_SPELLCAST_SUCCEEDED: register directly.
 ------------------------------------------------------------------------
-local _cleuFrame    = CreateFrame("Frame")
 local _ucFrame      = CreateFrame("Frame")
 local _spellFrame   = CreateFrame("Frame")
-
--- CLEU handler
-_cleuFrame:SetScript("OnEvent", function()
-    if CombatLog._enabled then
-        local ok, err = pcall(HandleCLEU)
-        if not ok then
-            Debug(2, "Parser.CombatLog: CLEU handler error: " .. tostring(err))
-        end
-    end
-end)
 
 -- UNIT_COMBAT handler (incoming "player" + outgoing "target")
 _ucFrame:SetScript("OnEvent", function(_, _, unit, action, indicator, amount, school)
@@ -396,98 +393,40 @@ _spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
     end
 end)
 
--- Max attempts prevents infinite retry for events removed in Midnight.
-local MAX_REGISTER_ATTEMPTS = 5
-
-local _cleuAttempts = 0
-local function TryRegisterCLEU()
-    if CombatLog._cleuRegistered then return end
-    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
-    _cleuAttempts = _cleuAttempts + 1
-    if _cleuAttempts > MAX_REGISTER_ATTEMPTS then
-        Debug(1, "Parser.CombatLog: CLEU registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts (event may not exist)")
-        return
-    end
-    local ok = pcall(function()
-        _cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    end)
-    if ok then
-        CombatLog._cleuRegistered = true
-        Debug(1, "Parser.CombatLog: CLEU registered successfully")
-    else
-        C_Timer.After(2, TryRegisterCLEU)
-    end
-end
-
-local _ucAttempts = 0
-local function TryRegisterUnitCombat()
-    if CombatLog._ucRegistered then return end
-    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
-    _ucAttempts = _ucAttempts + 1
-    if _ucAttempts > MAX_REGISTER_ATTEMPTS then
-        Debug(1, "Parser.CombatLog: UNIT_COMBAT registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts (event may not exist)")
-        return
-    end
-    local ok = pcall(function()
-        if _ucFrame.RegisterUnitEvent then
-            -- Register for both "player" (incoming) and "target" (outgoing).
-            _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
-        else
-            _ucFrame:RegisterEvent("UNIT_COMBAT")
+-- CLEU: only register if the combat log API actually exists.
+if GetCombatLogInfo then
+    local _cleuFrame = CreateFrame("Frame")
+    _cleuFrame:SetScript("OnEvent", function()
+        if CombatLog._enabled then
+            local ok, err = pcall(HandleCLEU)
+            if not ok then
+                Debug(2, "Parser.CombatLog: CLEU handler error: " .. tostring(err))
+            end
         end
     end)
-    if ok then
-        CombatLog._ucRegistered = true
-        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
-    else
-        C_Timer.After(2, TryRegisterUnitCombat)
-    end
+    _cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    CombatLog._cleuRegistered = true
+    Debug(1, "Parser.CombatLog: CLEU registered successfully")
+else
+    Debug(1, "Parser.CombatLog: CLEU API not available, skipping registration")
 end
 
-local _spellRegistered = false
-local _spellAttempts = 0
-local function TryRegisterSpellcast()
-    if _spellRegistered then return end
-    if InCombatLockdown() then return end  -- defer to PLAYER_REGEN_ENABLED
-    _spellAttempts = _spellAttempts + 1
-    if _spellAttempts > MAX_REGISTER_ATTEMPTS then
-        Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registration abandoned after " .. MAX_REGISTER_ATTEMPTS .. " attempts")
-        return
-    end
-    local ok = pcall(function()
-        if _spellFrame.RegisterUnitEvent then
-            _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
-        else
-            _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-        end
-    end)
-    if ok then
-        _spellRegistered = true
-        Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
-    else
-        C_Timer.After(2, TryRegisterSpellcast)
-    end
+-- UNIT_COMBAT: register directly at load time.
+if _ucFrame.RegisterUnitEvent then
+    _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+else
+    _ucFrame:RegisterEvent("UNIT_COMBAT")
 end
+CombatLog._ucRegistered = true
+Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
 
--- Delay initial attempts to let the client settle after load.
-C_Timer.After(1, TryRegisterUnitCombat)
-C_Timer.After(1, TryRegisterSpellcast)
-C_Timer.After(2, TryRegisterCLEU)
-
--- If player reloads during combat, retry registration when combat ends.
-do
-    local regenFrame = CreateFrame("Frame")
-    local ok = pcall(function()
-        regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    end)
-    if ok then
-        regenFrame:SetScript("OnEvent", function()
-            if not CombatLog._cleuRegistered and _cleuAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterCLEU() end
-            if not CombatLog._ucRegistered and _ucAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterUnitCombat() end
-            if not _spellRegistered and _spellAttempts <= MAX_REGISTER_ATTEMPTS then TryRegisterSpellcast() end
-        end)
-    end
+-- UNIT_SPELLCAST_SUCCEEDED: register directly at load time.
+if _spellFrame.RegisterUnitEvent then
+    _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+else
+    _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 end
+Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
 
 ------------------------------------------------------------------------
 -- Enable / Disable
