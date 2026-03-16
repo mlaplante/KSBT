@@ -371,6 +371,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isAuto = evt.isAuto == true,
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
+            spellId = evt.spellId,
         }
         local color
         if meta.isCrit then
@@ -440,6 +441,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             kind = kind,
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
+            spellId = evt.spellId,
         }
         local color
         if meta.isCrit then
