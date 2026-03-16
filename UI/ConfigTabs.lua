@@ -298,8 +298,8 @@ local function CreateDefaultScrollArea(name)
     if KSBT.db.profile.scrollAreas[name] then return name end
 
     KSBT.db.profile.scrollAreas[name] = {
-        xOffset   = -450,
-        yOffset   = 250,
+        xOffset   = -20,
+        yOffset   = 20,
         width     = 200,
         height    = 300,
         alignment = "Center",
@@ -491,8 +491,8 @@ function KSBT.BuildTab_ScrollAreas()
                             end
 
                             KSBT.db.profile.scrollAreas[val] = {
-                                xOffset   = -450,
-                                yOffset   = 250,
+                                xOffset   = -20,
+                                yOffset   = 20,
                                 width     = 200,
                                 height    = 300,
                                 alignment = "Center",
@@ -564,12 +564,12 @@ function KSBT.BuildTab_ScrollAreas()
             },
             xOffset = {
                 type   = "range",
-                name   = "X Offset",
-                desc   = "Horizontal position relative to screen center.",
+                name   = "X Offset (%)",
+                desc   = "Horizontal position as % of screen width from center.",
                 order  = 11,
                 min    = KSBT.SCROLL_OFFSET_MIN,
                 max    = KSBT.SCROLL_OFFSET_MAX,
-                step   = 5,
+                step   = 1,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
                     local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
@@ -588,12 +588,12 @@ function KSBT.BuildTab_ScrollAreas()
             },
             yOffset = {
                 type   = "range",
-                name   = "Y Offset",
-                desc   = "Vertical position relative to screen center.",
+                name   = "Y Offset (%)",
+                desc   = "Vertical position as % of screen height from center.",
                 order  = 12,
                 min    = KSBT.SCROLL_OFFSET_MIN,
                 max    = KSBT.SCROLL_OFFSET_MAX,
-                step   = 5,
+                step   = 1,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
                     local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
@@ -858,12 +858,13 @@ function KSBT.BuildTab_ScrollAreas()
             animSpeed = {
                 type   = "range",
                 name   = "Animation Speed",
-                desc   = "Duration in seconds for text animation (1.0 = normal).",
+                desc   = "How fast text scrolls. 0.25 = very slow, 1.0 = normal, 5.0 = very fast.",
                 order  = 25,
                 width  = "full",
-                min    = 0.5,
-                max    = 3.0,
-                step   = 0.1,
+                min    = 0.25,
+                max    = 5.0,
+                step   = 0.05,
+                isPercent = false,
                 -- Hidden when no area selected, or when animation style is Static
                 hidden = function()
                     if not selectedScrollArea then return true end

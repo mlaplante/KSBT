@@ -21,6 +21,23 @@ function Addon:OnInitialize()
     -- Store reference in shared namespace for cross-file access
     KSBT.db = self.db
 
+    -- One-time migration: convert pixel offsets to screen-percentage offsets.
+    -- Old values were in -500..500 (pixels); new values are -50..50 (%).
+    -- Any |offset| > 50 is certainly an old pixel value.
+    if self.db.profile and self.db.profile.scrollAreas then
+        local screenW, screenH = UIParent:GetWidth(), UIParent:GetHeight()
+        for name, area in pairs(self.db.profile.scrollAreas) do
+            if area.xOffset and (area.xOffset > 50 or area.xOffset < -50) then
+                area.xOffset = (area.xOffset / screenW) * 100
+                area.xOffset = math.floor(area.xOffset * 10 + 0.5) / 10
+            end
+            if area.yOffset and (area.yOffset > 50 or area.yOffset < -50) then
+                area.yOffset = (area.yOffset / screenH) * 100
+                area.yOffset = math.floor(area.yOffset * 10 + 0.5) / 10
+            end
+        end
+    end
+
     if KSBT.Core and KSBT.Core.Minimap and KSBT.Core.Minimap.Init then
         KSBT.Core.Minimap:Init()
     end

@@ -40,8 +40,8 @@ KSBT.DEFAULTS = {
         ------------------------------------------------------------------------
         scrollAreas = {
             ["Outgoing"] = {
-                xOffset   = 200,
-                yOffset   = 0,
+                xOffset   = 10,     -- percent of screen width from center
+                yOffset   = 0,      -- percent of screen height from center
                 width     = 200,
                 height    = 300,
                 alignment = "Center",
@@ -50,7 +50,7 @@ KSBT.DEFAULTS = {
                 animSpeed = 1.0,
             },
             ["Incoming"] = {
-                xOffset   = -200,
+                xOffset   = -10,
                 yOffset   = 0,
                 width     = 200,
                 height    = 300,
@@ -61,7 +61,7 @@ KSBT.DEFAULTS = {
             },
             ["Notifications"] = {
                 xOffset   = 0,
-                yOffset   = 200,
+                yOffset   = 15,
                 width     = 300,
                 height    = 100,
                 alignment = "Center",
