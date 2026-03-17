@@ -93,6 +93,73 @@ function KSBT.GetSpellFilterMode(spellId, spellName, kind)
     return entry.mode or "auto"
 end
 
+------------------------------------------------------------------------
+-- Percentile-based font scaling (session-only, not persisted)
+------------------------------------------------------------------------
+local _spellHistory = {}     -- Key: spellId (number), Value: sorted array of amounts
+local MAX_HISTORY = 200      -- max samples per spell
+local MIN_SAMPLES = 20       -- minimum before scaling activates
+
+-- Insert a value into a sorted array, maintaining sort order.
+-- If array exceeds MAX_HISTORY, evict the median to preserve tail shape.
+local function RecordSpellAmount(spellId, amount)
+    if not spellId or spellId == 0 or not amount or amount <= 0 then return end
+
+    local hist = _spellHistory[spellId]
+    if not hist then
+        hist = {}
+        _spellHistory[spellId] = hist
+    end
+
+    -- Binary search for insert position
+    local lo, hi = 1, #hist
+    while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        if hist[mid] < amount then
+            lo = mid + 1
+        else
+            hi = mid - 1
+        end
+    end
+    table.insert(hist, lo, amount)
+
+    -- Evict median if over capacity (preserves both tails)
+    if #hist > MAX_HISTORY then
+        local median = math.floor(#hist / 2)
+        table.remove(hist, median)
+    end
+end
+
+-- Returns a font scale factor (1.0 to maxScale) based on percentile position.
+-- Returns 1.0 if not enough samples or amount is below threshold.
+local function GetPercentileScale(spellId, amount)
+    if not spellId or spellId == 0 or not amount or amount <= 0 then return 1.0 end
+
+    local db = KSBT.db and KSBT.db.profile
+    local conf = db and db.spamControl and db.spamControl.percentileScaling
+    if not conf or not conf.enabled then return 1.0 end
+
+    local hist = _spellHistory[spellId]
+    if not hist or #hist < MIN_SAMPLES then return 1.0 end
+
+    local pct = (tonumber(conf.percentile) or 95) / 100
+    local maxScale = tonumber(conf.maxScale) or 1.5
+    if maxScale <= 1.0 then return 1.0 end
+
+    local thresholdIdx = math.floor(#hist * pct)
+    if thresholdIdx < 1 then thresholdIdx = 1 end
+    local threshold = hist[thresholdIdx]
+    local maxVal = hist[#hist]
+
+    if amount < threshold then return 1.0 end
+    if maxVal <= threshold then return maxScale end
+
+    -- Lerp between 1.0 and maxScale based on position between threshold and max
+    local t = (amount - threshold) / (maxVal - threshold)
+    if t > 1.0 then t = 1.0 end
+    return 1.0 + t * (maxScale - 1.0)
+end
+
 local function MergeKey(kind, spellId, area)
     return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
 end
