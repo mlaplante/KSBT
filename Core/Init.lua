@@ -38,6 +38,35 @@ function Addon:OnInitialize()
         end
     end
 
+    -- One-time migration: copy profile spam control settings to char storage.
+    -- Each character migrates independently from the shared profile.
+    if self.db.char and not self.db.char.spamControlMigrated then
+        local profSpam = self.db.profile and self.db.profile.spamControl
+        if profSpam then
+            local charSpam = self.db.char.spamControl
+            -- Deep-copy profile values into char (only non-nil values)
+            if profSpam.merging then
+                for k, v in pairs(profSpam.merging) do
+                    charSpam.merging[k] = v
+                end
+            end
+            if profSpam.throttling then
+                for k, v in pairs(profSpam.throttling) do
+                    charSpam.throttling[k] = v
+                end
+            end
+            if profSpam.suppressDummyDamage ~= nil then
+                charSpam.suppressDummyDamage = profSpam.suppressDummyDamage
+            end
+            if profSpam.percentileScaling then
+                for k, v in pairs(profSpam.percentileScaling) do
+                    charSpam.percentileScaling[k] = v
+                end
+            end
+        end
+        self.db.char.spamControlMigrated = true
+    end
+
     if KSBT.Core and KSBT.Core.Minimap and KSBT.Core.Minimap.Init then
         KSBT.Core.Minimap:Init()
     end
