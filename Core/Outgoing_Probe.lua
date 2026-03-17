@@ -83,9 +83,11 @@ local function FlushMerge(key)
 end
 
 -- Emit an event, merging with previous if spam control is active.
--- baseText: the raw number string used as merge identity key (no "!" or spell name)
--- text: the fully composed display string
-local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isReplay)
+-- amount: numeric value for accumulation (nil/0 for secret values)
+-- baseText: the raw number string (used for non-merged direct emit)
+-- text: the fully composed display string (used for non-merged direct emit)
+-- isSecret: true if amount is a WoW secret number (skip arithmetic)
+local function EmitOrMerge(kind, spellId, area, amount, baseText, text, color, meta, isReplay, isSecret)
     local db = KSBT.db and KSBT.db.profile
     local mergeEnabled = db and db.spamControl and db.spamControl.merging
                          and db.spamControl.merging.enabled
@@ -96,24 +98,35 @@ local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isR
         local mkey = MergeKey(kind, spellId, area)
         local existing = _mergeState[mkey]
 
-        if existing and existing.baseText == baseText then
-            -- Same spell, same amount — merge
+        if existing then
+            -- Same spell in same area — accumulate
             existing.count = existing.count + 1
+            if not isSecret and not existing.isSecret then
+                existing.totalAmount = existing.totalAmount + (amount or 0)
+                existing.totalOverheal = (existing.totalOverheal or 0) + (meta.overhealAmount or 0)
+            else
+                existing.isSecret = true
+            end
+            if meta.isCrit then existing.hasCrit = true end
             if existing.timer then existing.timer:Cancel() end
             existing.timer = C_Timer.NewTimer(mergeWindow, function()
                 FlushMerge(mkey)
             end)
         else
-            -- Different or first occurrence — flush old, start new
-            if existing then FlushMerge(mkey) end
+            -- First occurrence — start new entry
             _mergeState[mkey] = {
-                baseText = baseText,
-                text     = text,
-                area     = area,
-                color    = color,
-                meta     = meta,
-                count    = 1,
-                timer    = C_Timer.NewTimer(mergeWindow, function()
+                kind         = kind,
+                spellId      = spellId,
+                area         = area,
+                totalAmount  = amount or 0,
+                totalOverheal = meta.overhealAmount or 0,
+                count        = 1,
+                color        = color,
+                meta         = meta,
+                isSecret     = isSecret == true,
+                hasCrit      = meta.isCrit == true,
+                secretText   = isSecret and baseText or nil,
+                timer        = C_Timer.NewTimer(mergeWindow, function()
                     FlushMerge(mkey)
                 end),
             }
