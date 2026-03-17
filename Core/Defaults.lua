@@ -142,6 +142,11 @@ KSBT.DEFAULTS = {
                 postMergeHealing = 0,
             },
             suppressDummyDamage = true,
+            percentileScaling = {
+                enabled    = true,
+                percentile = 95,
+                maxScale   = 1.5,
+            },
         },
 
         ------------------------------------------------------------------------
