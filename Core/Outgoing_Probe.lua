@@ -67,8 +67,69 @@ local function FlushMerge(key)
     if not entry then return end
     _mergeState[key] = nil
 
-    local text = entry.text
+    if entry.timer then entry.timer:Cancel() end
+
     local db = KSBT.db and KSBT.db.profile
+
+    -- Post-merge threshold check (skip for secret values)
+    if not entry.isSecret then
+        local throttle = db and db.spamControl and db.spamControl.throttling
+        if throttle then
+            local postMin
+            if entry.kind == "damage" then
+                postMin = tonumber(throttle.postMergeDamage) or 0
+            else
+                postMin = tonumber(throttle.postMergeHealing) or 0
+            end
+            if postMin > 0 and entry.totalAmount < postMin then
+                return  -- merged total below post-merge threshold; discard
+            end
+        end
+    end
+
+    -- Compose display text from accumulated data
+    local text
+    if entry.isSecret then
+        text = entry.secretText or "?"
+    else
+        text = tostring(math.floor(entry.totalAmount + 0.5))
+    end
+
+    -- Spell name (from first tick's meta)
+    local prof = db and db.outgoing
+    if prof and prof.showSpellNames and entry.meta and entry.meta.spellName
+    and entry.meta.spellName ~= "" and not entry.meta.isAuto then
+        text = text .. " " .. entry.meta.spellName
+    end
+
+    -- Target name (damage only)
+    if entry.kind == "damage" and prof and prof.damage and prof.damage.showTargets
+    and entry.meta and entry.meta.targetName and entry.meta.targetName ~= "" then
+        text = text .. " -> " .. entry.meta.targetName
+    end
+
+    -- Overheal display (healing only)
+    if entry.kind == "heal" and not entry.isSecret then
+        local healConf = prof and prof.healing
+        if healConf and healConf.showOverheal and (entry.totalOverheal or 0) > 0 then
+            text = text .. " (OH " .. tostring(math.floor(entry.totalOverheal + 0.5)) .. ")"
+        end
+    end
+
+    -- Crit marker: if any tick in the group was a crit, promote the merged display
+    local color = entry.color
+    local meta = entry.meta or {}
+    if entry.hasCrit then
+        text = text .. "!"
+        meta.isCrit = true
+        if entry.kind == "damage" then
+            color = {r = 1.00, g = 0.65, b = 0.00}
+        else
+            color = {r = 0.40, g = 1.00, b = 0.80}
+        end
+    end
+
+    -- Merge count suffix
     local showCount = db and db.spamControl and db.spamControl.merging
                       and db.spamControl.merging.showCount
     if entry.count > 1 and showCount then
@@ -76,9 +137,9 @@ local function FlushMerge(key)
     end
 
     if KSBT.DisplayText then
-        KSBT.DisplayText(entry.area, text, entry.color, entry.meta)
+        KSBT.DisplayText(entry.area, text, color, meta)
     elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
-        KSBT.Core.Display:Emit(entry.area, text, entry.color, entry.meta)
+        KSBT.Core.Display:Emit(entry.area, text, color, meta)
     end
 end
 
