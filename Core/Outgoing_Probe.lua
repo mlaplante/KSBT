@@ -135,8 +135,8 @@ end
 local function GetPercentileScale(spellId, amount)
     if not spellId or spellId == 0 or not amount or amount <= 0 then return 1.0 end
 
-    local db = KSBT.db and KSBT.db.profile
-    local conf = db and db.spamControl and db.spamControl.percentileScaling
+    local charDb = KSBT.db and KSBT.db.char
+    local conf = charDb and charDb.spamControl and charDb.spamControl.percentileScaling
     if not conf or not conf.enabled then return 1.0 end
 
     local hist = _spellHistory[spellId]
@@ -172,11 +172,12 @@ local function FlushMerge(key)
     if entry.timer then entry.timer:Cancel() end
 
     local db = KSBT.db and KSBT.db.profile
+    local charDb = KSBT.db and KSBT.db.char
 
     -- Post-merge threshold check (skip for secret values and whitelisted spells)
     local isWhitelisted = entry.meta and entry.meta.whitelisted
     if not entry.isSecret and not isWhitelisted then
-        local throttle = db and db.spamControl and db.spamControl.throttling
+        local throttle = charDb and charDb.spamControl and charDb.spamControl.throttling
         if throttle then
             local postMin
             if entry.kind == "damage" then
@@ -235,8 +236,8 @@ local function FlushMerge(key)
     end
 
     -- Merge count suffix
-    local showCount = db and db.spamControl and db.spamControl.merging
-                      and db.spamControl.merging.showCount
+    local showCount = charDb and charDb.spamControl and charDb.spamControl.merging
+                      and charDb.spamControl.merging.showCount
     if entry.count > 1 and showCount then
         text = text .. " x" .. entry.count
     end
@@ -265,10 +266,11 @@ end
 -- isSecret: true if amount is a WoW secret number (skip arithmetic)
 local function EmitOrMerge(kind, spellId, area, amount, baseText, text, color, meta, isReplay, isSecret)
     local db = KSBT.db and KSBT.db.profile
-    local mergeEnabled = db and db.spamControl and db.spamControl.merging
-                         and db.spamControl.merging.enabled
-    local mergeWindow  = (db and db.spamControl and db.spamControl.merging
-                         and db.spamControl.merging.window) or 1.5
+    local charDb = KSBT.db and KSBT.db.char
+    local mergeEnabled = charDb and charDb.spamControl and charDb.spamControl.merging
+                         and charDb.spamControl.merging.enabled
+    local mergeWindow  = (charDb and charDb.spamControl and charDb.spamControl.merging
+                         and charDb.spamControl.merging.window) or 1.5
 
     if mergeEnabled and not isReplay then
         local mkey = MergeKey(kind, spellId, area)
@@ -527,7 +529,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             local minT = tonumber(conf.minThreshold) or 0
             if amt < minT then return end
 
-            local spamConf = KSBT.db.profile.spamControl
+            local spamConf = KSBT.db.char.spamControl
             local throttle = spamConf and spamConf.throttling
             if throttle then
                 local globalMin = tonumber(throttle.minDamage) or 0
@@ -630,7 +632,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             local minT = tonumber(conf.minThreshold) or 0
             if displayAmt < minT then return end
 
-            local spamConf2 = KSBT.db.profile.spamControl
+            local spamConf2 = KSBT.db.char.spamControl
             local throttle2 = spamConf2 and spamConf2.throttling
             if throttle2 then
                 local globalMin = tonumber(throttle2.minHealing) or 0
