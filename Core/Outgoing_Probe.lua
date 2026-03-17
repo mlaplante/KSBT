@@ -241,6 +241,16 @@ local function FlushMerge(key)
         text = text .. " x" .. entry.count
     end
 
+    -- Percentile-based font scaling
+    if not entry.isSecret and entry.spellId then
+        local scale = GetPercentileScale(entry.spellId, entry.totalAmount)
+        if scale > 1.0 then
+            meta.fontScale = scale
+        end
+        -- Record merged total for future percentile checks
+        RecordSpellAmount(entry.spellId, entry.totalAmount)
+    end
+
     if KSBT.DisplayText then
         KSBT.DisplayText(entry.area, text, color, meta)
     elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
@@ -578,6 +588,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             end
         end
 
+        -- Percentile font scaling for direct (non-merged) emit
+        if not isSecret and evt.spellId then
+            local scale = GetPercentileScale(evt.spellId, amt)
+            if scale > 1.0 then
+                meta.fontScale = scale
+            end
+        end
+
         EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", amt, baseText, text, color, meta, isReplay, isSecret)
 
     else  -- heal
@@ -655,6 +673,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             text = text .. "!"
         else
             color = {r = 0.20, g = 1.00, b = 0.20}
+        end
+
+        -- Percentile font scaling for direct (non-merged) emit
+        if not isSecret and not overSecret and evt.spellId and displayAmt then
+            local scale = GetPercentileScale(evt.spellId, displayAmt)
+            if scale > 1.0 then
+                meta.fontScale = scale
+            end
         end
 
         local emitAmt = (not isSecret and not overSecret) and displayAmt or 0
