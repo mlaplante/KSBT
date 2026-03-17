@@ -30,6 +30,12 @@ KSBT.DEFAULTS = {
             showSpellIcons = true,
             spellIconSize  = 16,    -- pixels
 
+            -- Number formatting
+            numberFormat = {
+                style    = "Full",    -- "Full" | "Short" | "Short (no decimal)"
+                decimals = 1,         -- 0, 1, or 2 (used by "Short" style)
+            },
+
             -- Master font settings
             font = {
                 face    = "Friz Quadrata TT",   -- Default WoW font

@@ -195,7 +195,7 @@ local function FlushMerge(key)
     if entry.isSecret then
         text = entry.secretText or "?"
     else
-        text = tostring(math.floor(entry.totalAmount + 0.5))
+        text = KSBT.FormatNumber and KSBT.FormatNumber(entry.totalAmount) or tostring(math.floor(entry.totalAmount + 0.5))
     end
 
     -- Spell name (from first tick's meta)
@@ -547,7 +547,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
 
         -- Build display text.
         -- Secret amounts: tostring() works via Blizzard metamethod; skip spell/target append.
-        local baseText = isSecret and tostring(evt.amount) or tostring(math.floor(amt + 0.5))
+        local baseText = isSecret and tostring(evt.amount) or (KSBT.FormatNumber and KSBT.FormatNumber(amt) or tostring(math.floor(amt + 0.5)))
         local text = baseText
 
         if not isSecret and prof.showSpellNames and evt.isAuto ~= true
@@ -649,7 +649,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             -- Secret value: tostring() works; overheal arithmetic skipped.
             baseText = tostring(evt.amount)
         else
-            baseText = tostring(math.floor(displayAmt + 0.5))
+            baseText = KSBT.FormatNumber and KSBT.FormatNumber(displayAmt) or tostring(math.floor(displayAmt + 0.5))
         end
         local text = baseText
 
