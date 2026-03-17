@@ -1592,17 +1592,24 @@ function KSBT.BuildTab_SpamControl()
             },
 
             ----------------------------------------------------------------
-            -- Throttling
+            -- Throttling (Pre-Merge)
             ----------------------------------------------------------------
             headerThrottle = {
                 type  = "header",
-                name  = "Throttling",
+                name  = "Pre-Merge Thresholds",
                 order = 10,
+            },
+            throttleDesc = {
+                type     = "description",
+                name     = "Filter individual hits before merging. Use low values (500-2000) " ..
+                           "to remove tiny noise while letting multi-hit abilities through to the merge stage.",
+                order    = 10.5,
+                fontSize = "medium",
             },
             minDamage = {
                 type    = "range",
-                name    = "Global Minimum Damage",
-                desc    = "Suppress all damage events below this value (0 = show all).",
+                name    = "Pre-Merge Minimum Damage",
+                desc    = "Suppress individual damage hits below this value before merging (0 = show all).",
                 order   = 11,
                 min     = 0,
                 max     = 100000,
@@ -1613,8 +1620,8 @@ function KSBT.BuildTab_SpamControl()
             },
             minHealing = {
                 type    = "range",
-                name    = "Global Minimum Healing",
-                desc    = "Suppress all healing events below this value (0 = show all).",
+                name    = "Pre-Merge Minimum Healing",
+                desc    = "Suppress individual healing hits below this value before merging (0 = show all).",
                 order   = 12,
                 min     = 0,
                 max     = 100000,
@@ -1634,6 +1641,49 @@ function KSBT.BuildTab_SpamControl()
                 step    = 25,
                 get     = function() return KSBT.db.profile.spamControl.throttling.hideAutoBelow end,
                 set     = function(_, val) KSBT.db.profile.spamControl.throttling.hideAutoBelow = val end,
+            },
+
+            ----------------------------------------------------------------
+            -- Post-Merge Thresholds
+            ----------------------------------------------------------------
+            headerPostMerge = {
+                type  = "header",
+                name  = "Post-Merge Thresholds",
+                order = 15,
+            },
+            postMergeDesc = {
+                type     = "description",
+                name     = "Filter merged totals after accumulation. Set higher than pre-merge " ..
+                           "to ensure multi-hit abilities like Rapid Fire display correctly. " ..
+                           "Only applies when spell merging is enabled.",
+                order    = 15.5,
+                fontSize = "medium",
+            },
+            postMergeDamage = {
+                type     = "range",
+                name     = "Post-Merge Minimum Damage",
+                desc     = "Suppress merged damage totals below this value (0 = show all merged).",
+                order    = 16,
+                min      = KSBT.POST_MERGE_THRESHOLD_MIN,
+                max      = KSBT.POST_MERGE_THRESHOLD_MAX,
+                softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
+                step     = KSBT.POST_MERGE_THRESHOLD_STEP,
+                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.throttling.postMergeDamage end,
+                set      = function(_, val) KSBT.db.profile.spamControl.throttling.postMergeDamage = val end,
+            },
+            postMergeHealing = {
+                type     = "range",
+                name     = "Post-Merge Minimum Healing",
+                desc     = "Suppress merged healing totals below this value (0 = show all merged).",
+                order    = 17,
+                min      = KSBT.POST_MERGE_THRESHOLD_MIN,
+                max      = KSBT.POST_MERGE_THRESHOLD_MAX,
+                softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
+                step     = KSBT.POST_MERGE_THRESHOLD_STEP,
+                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.throttling.postMergeHealing end,
+                set      = function(_, val) KSBT.db.profile.spamControl.throttling.postMergeHealing = val end,
             },
 
             ----------------------------------------------------------------
