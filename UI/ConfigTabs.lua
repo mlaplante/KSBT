@@ -2405,62 +2405,101 @@ function KSBT.BuildTab_SpellFilters()
         },
     }
 
-    -- Dynamically inject per-spell dropdowns
-    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
-    if filters then
-        local damageSpells = {}
-        local healSpells = {}
+    -- Dynamically inject per-spell dropdowns using slot-based pattern.
+    -- Pre-allocate slots with hidden/name/get/set callbacks that read live data.
+    -- This ensures spells discovered after login appear without rebuilding the table.
+    local MAX_SPELL_SLOTS = 100  -- max spells per kind (damage/healing)
+
+    -- Helper: get sorted spell list for a given kind from live DB
+    local function getSortedSpells(targetKind)
+        local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+        if not filters then return {} end
+        local sorted = {}
         for id, entry in pairs(filters) do
-            if type(entry) == "table" then
-                local item = { id = id, name = entry.name or ("Spell " .. id) }
-                if entry.kind == "heal" then
-                    healSpells[#healSpells + 1] = item
-                else
-                    damageSpells[#damageSpells + 1] = item
-                end
+            if type(entry) == "table" and entry.kind == targetKind then
+                sorted[#sorted + 1] = {
+                    id = id,
+                    name = entry.name or ("Spell " .. id),
+                }
             end
         end
+        table.sort(sorted, function(a, b) return a.name:lower() < b.name:lower() end)
+        return sorted
+    end
 
-        table.sort(damageSpells, function(a, b) return a.name:lower() < b.name:lower() end)
-        table.sort(healSpells, function(a, b) return a.name:lower() < b.name:lower() end)
+    -- Helper: get the spellId key at a given slot index for a kind
+    local function getSpellAtSlot(targetKind, slotIndex)
+        local sorted = getSortedSpells(targetKind)
+        local item = sorted[slotIndex]
+        return item and item.id or nil, item and item.name or nil
+    end
 
-        for i, spell in ipairs(damageSpells) do
-            local spellId = spell.id
-            tab.args["dmg_" .. spellId] = {
-                type   = "select",
-                name   = spell.name,
-                desc   = "Spell ID: " .. spellId,
-                order  = 10 + i,
-                values = FILTER_MODES,
-                get    = function()
-                    local f = KSBT.db.char.spellFilters[spellId]
-                    return f and f.mode or "auto"
-                end,
-                set    = function(_, val)
-                    local f = KSBT.db.char.spellFilters[spellId]
-                    if f then f.mode = val end
-                end,
-            }
-        end
+    -- Damage spell slots (order 11+)
+    for slot = 1, MAX_SPELL_SLOTS do
+        local slotIndex = slot
 
-        for i, spell in ipairs(healSpells) do
-            local spellId = spell.id
-            tab.args["heal_" .. spellId] = {
-                type   = "select",
-                name   = spell.name,
-                desc   = "Spell ID: " .. spellId,
-                order  = 1000 + i,
-                values = FILTER_MODES,
-                get    = function()
-                    local f = KSBT.db.char.spellFilters[spellId]
-                    return f and f.mode or "auto"
-                end,
-                set    = function(_, val)
-                    local f = KSBT.db.char.spellFilters[spellId]
-                    if f then f.mode = val end
-                end,
-            }
-        end
+        tab.args["dmg_slot_" .. slot] = {
+            type   = "select",
+            name   = function()
+                local _, name = getSpellAtSlot("damage", slotIndex)
+                return name or ""
+            end,
+            desc   = function()
+                local id = getSpellAtSlot("damage", slotIndex)
+                return id and ("Spell ID: " .. id) or ""
+            end,
+            order  = 10 + slot,
+            values = FILTER_MODES,
+            hidden = function() return getSpellAtSlot("damage", slotIndex) == nil end,
+            get    = function()
+                local id = getSpellAtSlot("damage", slotIndex)
+                if not id then return "auto" end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                return f and f.mode or "auto"
+            end,
+            set    = function(_, val)
+                local id = getSpellAtSlot("damage", slotIndex)
+                if not id then return end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                if f then f.mode = val end
+            end,
+        }
+    end
+
+    -- Healing spell slots (order 1001+)
+    for slot = 1, MAX_SPELL_SLOTS do
+        local slotIndex = slot
+
+        tab.args["heal_slot_" .. slot] = {
+            type   = "select",
+            name   = function()
+                local _, name = getSpellAtSlot("heal", slotIndex)
+                return name or ""
+            end,
+            desc   = function()
+                local id = getSpellAtSlot("heal", slotIndex)
+                return id and ("Spell ID: " .. id) or ""
+            end,
+            order  = 1000 + slot,
+            values = FILTER_MODES,
+            hidden = function() return getSpellAtSlot("heal", slotIndex) == nil end,
+            get    = function()
+                local id = getSpellAtSlot("heal", slotIndex)
+                if not id then return "auto" end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                return f and f.mode or "auto"
+            end,
+            set    = function(_, val)
+                local id = getSpellAtSlot("heal", slotIndex)
+                if not id then return end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                if f then f.mode = val end
+            end,
+        }
     end
 
     return tab
