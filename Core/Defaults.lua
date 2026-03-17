@@ -132,30 +132,6 @@ KSBT.DEFAULTS = {
         },
 
         ------------------------------------------------------------------------
-        -- Tab 6: Spam Control
-        ------------------------------------------------------------------------
-        spamControl = {
-            merging = {
-                enabled     = true,
-                window      = 1.5,
-                showCount   = true,
-            },
-            throttling = {
-                minDamage        = 0,
-                minHealing       = 0,
-                hideAutoBelow    = 0,
-                postMergeDamage  = 0,
-                postMergeHealing = 0,
-            },
-            suppressDummyDamage = true,
-            percentileScaling = {
-                enabled    = true,
-                percentile = 95,
-                maxScale   = 1.5,
-            },
-        },
-
-        ------------------------------------------------------------------------
         -- Tab 7: Cooldowns
         ------------------------------------------------------------------------
         cooldowns = {
@@ -201,5 +177,26 @@ KSBT.DEFAULTS = {
 
     char = {
         spellFilters = {},
+        spamControlMigrated = false,
+        spamControl = {
+            merging = {
+                enabled     = true,
+                window      = 1.5,
+                showCount   = true,
+            },
+            throttling = {
+                minDamage        = 0,
+                minHealing       = 0,
+                hideAutoBelow    = 0,
+                postMergeDamage  = 0,
+                postMergeHealing = 0,
+            },
+            suppressDummyDamage = true,
+            percentileScaling = {
+                enabled    = true,
+                percentile = 95,
+                maxScale   = 1.5,
+            },
+        },
     },
 }
