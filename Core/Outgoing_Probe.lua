@@ -610,6 +610,16 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local over, overSecret = ReadAmount(evt.overheal)
         if evt.isSecret then isSecret = true; overSecret = true end
 
+        -- Record for percentile tracking BEFORE filtering (all hits count)
+        if not isSecret and not overSecret and evt.spellId then
+            local rawOver = over
+            if rawOver < 0 then rawOver = 0 end
+            local recordAmt = amt - rawOver
+            if recordAmt > 0 then
+                RecordSpellAmount(evt.spellId, recordAmt)
+            end
+        end
+
         -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
         local displayAmt
         if not isSecret and not overSecret and spellFilterMode ~= "show" then
@@ -633,11 +643,6 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if displayAmt <= 0 then return end
         end
         -- Secret: skip all arithmetic checks; trust CLEU that an event occurred.
-
-        -- Record for percentile tracking (use displayAmt which accounts for overheal)
-        if not isSecret and not overSecret and evt.spellId and displayAmt and displayAmt > 0 then
-            RecordSpellAmount(evt.spellId, displayAmt)
-        end
 
         local baseText
         if isSecret or overSecret then
