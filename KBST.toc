@@ -4,7 +4,10 @@
 ## Author: Kroth Haomarush
 ## Version: 1.4.10
 ## SavedVariables: KrothSBTDB
-## OptionalDeps: Ace3, LibSharedMedia-3.0
+## OptionalDeps: Ace3, ElvUI, LibSharedMedia-3.0
+
+# Snapshot existing lib wrappers before our bundled Ace3 loads
+Core\PreLib.lua
 
 # Libraries - Load order matters
 Libs\LibStub\LibStub.lua
@@ -18,6 +21,9 @@ Libs\AceConfig-3.0\AceConfigDialog-3.0.lua
 Libs\AceConfig-3.0\AceConfigCmd-3.0.lua
 Libs\AceGUI-3.0\AceGUI-3.0.lua
 Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
+
+# Restore any third-party lib wrappers our libs may have replaced
+Core\PostLib.lua
 
 # Core - Constants and defaults before init
 Core\Constants.lua
