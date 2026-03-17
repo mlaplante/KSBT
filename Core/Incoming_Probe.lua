@@ -293,6 +293,10 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
     local conf = (kind == "damage") and prof.damage or prof.healing
     if not conf or not conf.enabled then return end
 
+    -- Spell filter check (per-character overrides)
+    local spellFilterMode = KSBT.GetSpellFilterMode(evt.spellId, evt.spellName, kind)
+    if spellFilterMode == "hide" then return end
+
     -- Secret value handling: skip tonumber and thresholds
     local isSecret = evt.isSecret or (issecretvalue and issecretvalue(evt.amount) or false)
     local amt
@@ -302,8 +306,10 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
         amt = tonumber(evt.amount) or 0
         if amt <= 0 then return end
 
-        local minT = tonumber(conf.minThreshold) or 0
-        if amt < minT then return end
+        if spellFilterMode ~= "show" then
+            local minT = tonumber(conf.minThreshold) or 0
+            if amt < minT then return end
+        end
     end
 
     local area = conf.scrollArea or "Incoming"
