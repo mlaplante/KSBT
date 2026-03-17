@@ -1704,6 +1704,54 @@ function KSBT.BuildTab_SpamControl()
                 get   = function() return KSBT.db.profile.spamControl.suppressDummyDamage end,
                 set   = function(_, val) KSBT.db.profile.spamControl.suppressDummyDamage = val end,
             },
+            ----------------------------------------------------------------
+            -- Percentile Scaling
+            ----------------------------------------------------------------
+            headerPercentile = {
+                type  = "header",
+                name  = "Percentile Scaling",
+                order = 25,
+            },
+            percentileDesc = {
+                type     = "description",
+                name     = "Scale up the font size for exceptionally high hits. The addon tracks each " ..
+                           "spell's damage distribution and enlarges outliers above your configured percentile.",
+                order    = 25.5,
+                fontSize = "medium",
+            },
+            percentileEnabled = {
+                type  = "toggle",
+                name  = "Enable Percentile Scaling",
+                desc  = "Increase font size for hits above the percentile threshold.",
+                width = "full",
+                order = 26,
+                get   = function() return KSBT.db.profile.spamControl.percentileScaling.enabled end,
+                set   = function(_, val) KSBT.db.profile.spamControl.percentileScaling.enabled = val end,
+            },
+            percentileThreshold = {
+                type     = "range",
+                name     = "Percentile Threshold",
+                desc     = "Hits above this percentile are scaled up. Higher = rarer/more selective.",
+                order    = 27,
+                min      = 50,
+                max      = 99,
+                step     = 1,
+                disabled = function() return not KSBT.db.profile.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.percentileScaling.percentile end,
+                set      = function(_, val) KSBT.db.profile.spamControl.percentileScaling.percentile = val end,
+            },
+            percentileMaxScale = {
+                type     = "range",
+                name     = "Maximum Scale",
+                desc     = "Maximum font size multiplier for the highest outliers (1.0 = no change, 2.0 = double size).",
+                order    = 28,
+                min      = 1.0,
+                max      = 2.0,
+                step     = 0.1,
+                disabled = function() return not KSBT.db.profile.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.profile.spamControl.percentileScaling.maxScale end,
+                set      = function(_, val) KSBT.db.profile.spamControl.percentileScaling.maxScale = val end,
+            },
         },
     }
 end
