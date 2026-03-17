@@ -56,6 +56,12 @@ function Display:Emit(areaName, text, color, meta)
     end
 
     local fontFace, fontSize, outlineFlag, fontAlpha = KSBT.ResolveFontForArea(areaName)
+
+    -- Percentile-based font scaling
+    if meta and meta.fontScale and meta.fontScale > 1.0 then
+        fontSize = math.floor(fontSize * meta.fontScale + 0.5)
+    end
+
     local anchorH = (area.alignment == "Left" and "LEFT") or (area.alignment == "Right" and "RIGHT") or "CENTER"
     local dirMult = (area.direction == "Down") and -1 or 1
     local speed = tonumber(area.animSpeed) or 1.0
