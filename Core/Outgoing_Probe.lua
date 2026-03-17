@@ -402,15 +402,6 @@ end
 function Probe:OnOutgoingDetected(evt)
     if not evt or type(evt) ~= "table" then return end
 
-    -- Debug logging
-    local db = KSBT.db and KSBT.db.profile
-    local lvl = db and db.diagnostics and db.diagnostics.debugLevel or 0
-    if lvl >= 1 then
-        print("|cff00ff00KSBT-Probe|r OnOutgoingDetected: kind=" .. tostring(evt.kind)
-            .. " amount=" .. tostring(evt.amount)
-            .. " spell=" .. tostring(evt.spellName))
-    end
-
     -- Record into ring buffer only during an active capture session.
     if self._capturing then
         PushEvent(evt)
