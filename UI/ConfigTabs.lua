@@ -1583,6 +1583,12 @@ function KSBT.BuildTab_SpamControl()
             ----------------------------------------------------------------
             -- Merging
             ----------------------------------------------------------------
+            charNote = {
+                type     = "description",
+                name     = "|cFFFFCC00These settings are specific to your current character.|r",
+                order    = 0.5,
+                fontSize = "medium",
+            },
             headerMerge = {
                 type  = "header",
                 name  = "Spell Merging",
@@ -1601,8 +1607,8 @@ function KSBT.BuildTab_SpamControl()
                 desc  = "Merge rapid repeated hits from the same spell.",
                 width = "full",
                 order = 3,
-                get   = function() return KSBT.db.profile.spamControl.merging.enabled end,
-                set   = function(_, val) KSBT.db.profile.spamControl.merging.enabled = val end,
+                get   = function() return KSBT.db.char.spamControl.merging.enabled end,
+                set   = function(_, val) KSBT.db.char.spamControl.merging.enabled = val end,
             },
             mergeWindow = {
                 type     = "range",
@@ -1612,9 +1618,9 @@ function KSBT.BuildTab_SpamControl()
                 min      = KSBT.MERGE_WINDOW_MIN,
                 max      = KSBT.MERGE_WINDOW_MAX,
                 step     = 0.1,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.merging.window end,
-                set      = function(_, val) KSBT.db.profile.spamControl.merging.window = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.merging.window end,
+                set      = function(_, val) KSBT.db.char.spamControl.merging.window = val end,
             },
             mergeShowCount = {
                 type     = "toggle",
@@ -1622,9 +1628,9 @@ function KSBT.BuildTab_SpamControl()
                 desc     = "Display hit count (e.g., \"x3\") alongside merged damage.",
                 width    = "full",
                 order    = 5,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.merging.showCount end,
-                set      = function(_, val) KSBT.db.profile.spamControl.merging.showCount = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.merging.showCount end,
+                set      = function(_, val) KSBT.db.char.spamControl.merging.showCount = val end,
             },
 
             ----------------------------------------------------------------
@@ -1651,8 +1657,8 @@ function KSBT.BuildTab_SpamControl()
                 max     = 100000,
                 softMax = 50000,
                 step    = 100,
-                get     = function() return KSBT.db.profile.spamControl.throttling.minDamage end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minDamage = val end,
+                get     = function() return KSBT.db.char.spamControl.throttling.minDamage end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.minDamage = val end,
             },
             minHealing = {
                 type    = "range",
@@ -1663,8 +1669,8 @@ function KSBT.BuildTab_SpamControl()
                 max     = 100000,
                 softMax = 50000,
                 step    = 100,
-                get     = function() return KSBT.db.profile.spamControl.throttling.minHealing end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minHealing = val end,
+                get     = function() return KSBT.db.char.spamControl.throttling.minHealing end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.minHealing = val end,
             },
             hideAutoBelow = {
                 type    = "range",
@@ -1675,8 +1681,8 @@ function KSBT.BuildTab_SpamControl()
                 max     = 5000,
                 softMax = 1000,
                 step    = 25,
-                get     = function() return KSBT.db.profile.spamControl.throttling.hideAutoBelow end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.hideAutoBelow = val end,
+                get     = function() return KSBT.db.char.spamControl.throttling.hideAutoBelow end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.hideAutoBelow = val end,
             },
 
             ----------------------------------------------------------------
@@ -1704,9 +1710,9 @@ function KSBT.BuildTab_SpamControl()
                 max      = KSBT.POST_MERGE_THRESHOLD_MAX,
                 softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
                 step     = KSBT.POST_MERGE_THRESHOLD_STEP,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.throttling.postMergeDamage end,
-                set      = function(_, val) KSBT.db.profile.spamControl.throttling.postMergeDamage = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.throttling.postMergeDamage end,
+                set      = function(_, val) KSBT.db.char.spamControl.throttling.postMergeDamage = val end,
             },
             postMergeHealing = {
                 type     = "range",
@@ -1717,9 +1723,9 @@ function KSBT.BuildTab_SpamControl()
                 max      = KSBT.POST_MERGE_THRESHOLD_MAX,
                 softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
                 step     = KSBT.POST_MERGE_THRESHOLD_STEP,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.throttling.postMergeHealing end,
-                set      = function(_, val) KSBT.db.profile.spamControl.throttling.postMergeHealing = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.throttling.postMergeHealing end,
+                set      = function(_, val) KSBT.db.char.spamControl.throttling.postMergeHealing = val end,
             },
 
             ----------------------------------------------------------------
@@ -1737,8 +1743,8 @@ function KSBT.BuildTab_SpamControl()
                         "generate (these are not real damage).",
                 width = "full",
                 order = 21,
-                get   = function() return KSBT.db.profile.spamControl.suppressDummyDamage end,
-                set   = function(_, val) KSBT.db.profile.spamControl.suppressDummyDamage = val end,
+                get   = function() return KSBT.db.char.spamControl.suppressDummyDamage end,
+                set   = function(_, val) KSBT.db.char.spamControl.suppressDummyDamage = val end,
             },
             ----------------------------------------------------------------
             -- Percentile Scaling
@@ -1761,8 +1767,8 @@ function KSBT.BuildTab_SpamControl()
                 desc  = "Increase font size for hits above the percentile threshold.",
                 width = "full",
                 order = 26,
-                get   = function() return KSBT.db.profile.spamControl.percentileScaling.enabled end,
-                set   = function(_, val) KSBT.db.profile.spamControl.percentileScaling.enabled = val end,
+                get   = function() return KSBT.db.char.spamControl.percentileScaling.enabled end,
+                set   = function(_, val) KSBT.db.char.spamControl.percentileScaling.enabled = val end,
             },
             percentileThreshold = {
                 type     = "range",
@@ -1772,9 +1778,9 @@ function KSBT.BuildTab_SpamControl()
                 min      = 50,
                 max      = 99,
                 step     = 1,
-                disabled = function() return not KSBT.db.profile.spamControl.percentileScaling.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.percentileScaling.percentile end,
-                set      = function(_, val) KSBT.db.profile.spamControl.percentileScaling.percentile = val end,
+                disabled = function() return not KSBT.db.char.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.char.spamControl.percentileScaling.percentile end,
+                set      = function(_, val) KSBT.db.char.spamControl.percentileScaling.percentile = val end,
             },
             percentileMaxScale = {
                 type     = "range",
@@ -1784,9 +1790,9 @@ function KSBT.BuildTab_SpamControl()
                 min      = 1.0,
                 max      = 2.0,
                 step     = 0.1,
-                disabled = function() return not KSBT.db.profile.spamControl.percentileScaling.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.percentileScaling.maxScale end,
-                set      = function(_, val) KSBT.db.profile.spamControl.percentileScaling.maxScale = val end,
+                disabled = function() return not KSBT.db.char.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.char.spamControl.percentileScaling.maxScale end,
+                set      = function(_, val) KSBT.db.char.spamControl.percentileScaling.maxScale = val end,
             },
         },
     }
@@ -2391,9 +2397,11 @@ end
 ------------------------------------------------------------------------
 function KSBT.BuildTab_SpellFilters()
     local FILTER_MODES = {
-        ["auto"] = "Auto (use thresholds)",
-        ["show"] = "Always Show",
-        ["hide"] = "Always Hide",
+        ["auto"]          = "Auto",
+        ["auto_nomerge"]  = "Auto (no merge)",
+        ["show"]          = "Always Show",
+        ["show_nomerge"]  = "Always Show (no merge)",
+        ["hide"]          = "Always Hide",
     }
 
     local tab = {
