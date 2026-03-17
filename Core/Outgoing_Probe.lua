@@ -58,6 +58,41 @@ local function ReadAmount(raw)
     return 0, false
 end
 
+-- Spell filter: per-character whitelist/blacklist with auto-discovery.
+-- Returns: "auto" (use thresholds), "show" (whitelist), "hide" (blacklist), or nil (no spellId)
+function KSBT.GetSpellFilterMode(spellId, spellName, kind)
+    if not spellId or spellId == 0 then return nil end
+    local charDb = KSBT.db and KSBT.db.char
+    if not charDb or not charDb.spellFilters then return nil end
+
+    local key = tostring(spellId)
+    local entry = charDb.spellFilters[key]
+    if not entry then
+        -- First time seeing this spell — auto-discover
+        local name = spellName
+        if (not name or name == "") and C_Spell and C_Spell.GetSpellInfo then
+            local info = C_Spell.GetSpellInfo(spellId)
+            name = info and info.name
+        end
+        charDb.spellFilters[key] = {
+            mode = "auto",
+            name = name or ("Unknown (" .. key .. ")"),
+            kind = kind or "damage",
+        }
+        return "auto"
+    end
+
+    -- Update name/kind if they were missing
+    if spellName and spellName ~= "" and (not entry.name or entry.name:match("^Unknown")) then
+        entry.name = spellName
+    end
+    if kind and not entry.kind then
+        entry.kind = kind
+    end
+
+    return entry.mode or "auto"
+end
+
 local function MergeKey(kind, spellId, area)
     return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
 end
@@ -400,11 +435,15 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if mode == "Show Only Crits" and evt.isCrit ~= true then return end
         end
 
+        -- Spell filter check (per-character overrides)
+        local spellFilterMode = KSBT.GetSpellFilterMode(evt.spellId, evt.spellName, "damage")
+        if spellFilterMode == "hide" then return end
+
         local amt, isSecret = ReadAmount(evt.amount)
         if evt.isSecret then isSecret = true end
 
         -- When readable: apply min-threshold and spam controls.
-        if not isSecret then
+        if not isSecret and spellFilterMode ~= "show" then
             if amt <= 0 then return end
 
             local minT = tonumber(conf.minThreshold) or 0
@@ -423,6 +462,9 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if spamConf and spamConf.suppressDummyDamage then
                 if IsDummyTarget(evt.destFlags) then return end
             end
+        elseif not isSecret then
+            -- Whitelisted: still need amt > 0 check
+            if amt <= 0 then return end
         end
 
         -- Build display text.
@@ -450,6 +492,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             spellId = evt.spellId,
             spellName = evt.spellName,
             targetName = evt.targetName,
+            whitelisted = (spellFilterMode == "show"),
         }
         local color
         if meta.isCrit then
@@ -473,13 +516,17 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local conf = prof.healing
         if not conf or not conf.enabled then return end
 
+        -- Spell filter check (per-character overrides)
+        local spellFilterMode = KSBT.GetSpellFilterMode(evt.spellId, evt.spellName, "heal")
+        if spellFilterMode == "hide" then return end
+
         local amt, isSecret   = ReadAmount(evt.amount)
         local over, overSecret = ReadAmount(evt.overheal)
         if evt.isSecret then isSecret = true; overSecret = true end
 
         -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
         local displayAmt
-        if not isSecret and not overSecret then
+        if not isSecret and not overSecret and spellFilterMode ~= "show" then
             if over < 0 then over = 0 end
             displayAmt = conf.showOverheal and amt or (amt - over)
             if displayAmt <= 0 then return end
@@ -493,6 +540,11 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
                 local globalMin = tonumber(throttle2.minHealing) or 0
                 if globalMin > 0 and displayAmt < globalMin then return end
             end
+        elseif not isSecret and not overSecret then
+            -- Whitelisted: still compute displayAmt
+            if over < 0 then over = 0 end
+            displayAmt = conf.showOverheal and amt or (amt - over)
+            if displayAmt <= 0 then return end
         end
         -- Secret: skip all arithmetic checks; trust CLEU that an event occurred.
 
@@ -522,6 +574,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             spellId = evt.spellId,
             spellName = evt.spellName,
             overhealAmount = (not isSecret and not overSecret) and over or 0,
+            whitelisted = (spellFilterMode == "show"),
         }
         local color
         if meta.isCrit then
