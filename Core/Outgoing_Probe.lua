@@ -272,7 +272,7 @@ local function EmitOrMerge(kind, spellId, area, amount, baseText, text, color, m
     local mergeWindow  = (charDb and charDb.spamControl and charDb.spamControl.merging
                          and charDb.spamControl.merging.window) or 1.5
 
-    if mergeEnabled and not isReplay then
+    if mergeEnabled and not isReplay and not (meta and meta.noMerge) then
         local mkey = MergeKey(kind, spellId, area)
         local existing = _mergeState[mkey]
 
@@ -523,7 +523,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         end
 
         -- When readable: apply min-threshold and spam controls.
-        if not isSecret and spellFilterMode ~= "show" then
+        if not isSecret and spellFilterMode ~= "show" and spellFilterMode ~= "show_nomerge" then
             if amt <= 0 then return end
 
             local minT = tonumber(conf.minThreshold) or 0
@@ -572,8 +572,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             spellId = evt.spellId,
             spellName = evt.spellName,
             targetName = evt.targetName,
-            whitelisted = (spellFilterMode == "show"),
+            whitelisted = (spellFilterMode == "show" or spellFilterMode == "show_nomerge"),
         }
+
+        -- Per-spell merge control
+        if spellFilterMode == "auto_nomerge" or spellFilterMode == "show_nomerge" then
+            meta.noMerge = true
+        end
+
         local color
         if meta.isCrit then
             color = {r = 1.00, g = 0.65, b = 0.00}
@@ -624,7 +630,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
 
         -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
         local displayAmt
-        if not isSecret and not overSecret and spellFilterMode ~= "show" then
+        if not isSecret and not overSecret and spellFilterMode ~= "show" and spellFilterMode ~= "show_nomerge" then
             if over < 0 then over = 0 end
             displayAmt = conf.showOverheal and amt or (amt - over)
             if displayAmt <= 0 then return end
@@ -672,8 +678,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             spellId = evt.spellId,
             spellName = evt.spellName,
             overhealAmount = (not isSecret and not overSecret) and over or 0,
-            whitelisted = (spellFilterMode == "show"),
+            whitelisted = (spellFilterMode == "show" or spellFilterMode == "show_nomerge"),
         }
+
+        -- Per-spell merge control
+        if spellFilterMode == "auto_nomerge" or spellFilterMode == "show_nomerge" then
+            meta.noMerge = true
+        end
+
         local color
         if meta.isCrit then
             color = {r = 0.40, g = 1.00, b = 0.80}
