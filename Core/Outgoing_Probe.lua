@@ -446,6 +446,8 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
             spellId = evt.spellId,
+            spellName = evt.spellName,
+            targetName = evt.targetName,
         }
         local color
         if meta.isCrit then
@@ -463,7 +465,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             end
         end
 
-        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", amt, baseText, text, color, meta, isReplay, isSecret)
 
     else  -- heal
         local conf = prof.healing
@@ -516,6 +518,8 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
             spellId = evt.spellId,
+            spellName = evt.spellName,
+            overhealAmount = (not isSecret and not overSecret) and over or 0,
         }
         local color
         if meta.isCrit then
@@ -525,6 +529,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             color = {r = 0.20, g = 1.00, b = 0.20}
         end
 
-        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
+        local emitAmt = (not isSecret and not overSecret) and displayAmt or 0
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", emitAmt, baseText, text, color, meta, isReplay, isSecret or overSecret)
     end
 end
