@@ -319,7 +319,7 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
     if isSecret then
         text = tostring(amt)
     else
-        text = tostring(math.floor(amt + 0.5))
+        text = KSBT.FormatNumber and KSBT.FormatNumber(amt) or tostring(math.floor(amt + 0.5))
     end
 
     -- Optional flags (legacy support)

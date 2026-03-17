@@ -10,6 +10,43 @@ local Addon = KSBT.Addon
 Core._initialized = Core._initialized or false
 Core._enabled     = Core._enabled or false
 
+------------------------------------------------------------------------
+-- Shared number formatter: converts amounts to display strings.
+-- Reads profile.general.numberFormat for style and decimal config.
+------------------------------------------------------------------------
+function KSBT.FormatNumber(amount)
+    local rounded = math.floor(amount + 0.5)
+    local db = KSBT.db and KSBT.db.profile
+    local conf = db and db.general and db.general.numberFormat
+    if not conf then return tostring(rounded) end
+
+    local style = conf.style or "Full"
+    if style == "Full" then
+        return tostring(rounded)
+    end
+
+    local decimals = tonumber(conf.decimals) or 1
+
+    if style == "Short (no decimal)" then
+        if rounded >= 1000000 then
+            return tostring(math.floor(rounded / 1000000 + 0.5)) .. "m"
+        elseif rounded >= 1000 then
+            return tostring(math.floor(rounded / 1000 + 0.5)) .. "k"
+        end
+        return tostring(rounded)
+    end
+
+    -- "Short" style with configurable decimals
+    if rounded >= 1000000 then
+        local val = rounded / 1000000
+        return string.format("%." .. decimals .. "f", val) .. "m"
+    elseif rounded >= 1000 then
+        local val = rounded / 1000
+        return string.format("%." .. decimals .. "f", val) .. "k"
+    end
+    return tostring(rounded)
+end
+
 
 function Core:IsMasterEnabled()
     return KSBT.db

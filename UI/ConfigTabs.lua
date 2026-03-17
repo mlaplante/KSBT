@@ -145,6 +145,42 @@ function KSBT.BuildTab_General()
                 end,
             },
 
+            ----------------------------------------------------------------
+            -- Number Formatting
+            ----------------------------------------------------------------
+            headerNumberFormat = {
+                type  = "header",
+                name  = "Number Formatting",
+                order = 8,
+            },
+            numberStyle = {
+                type   = "select",
+                name   = "Format Style",
+                desc   = "How to display damage and healing numbers.",
+                order  = 8.1,
+                values = {
+                    ["Full"]                = "Full (118749)",
+                    ["Short"]               = "Short (118.7k)",
+                    ["Short (no decimal)"]  = "Short no decimal (119k)",
+                },
+                get    = function() return KSBT.db.profile.general.numberFormat.style end,
+                set    = function(_, val) KSBT.db.profile.general.numberFormat.style = val end,
+            },
+            numberDecimals = {
+                type     = "range",
+                name     = "Decimal Places",
+                desc     = "Number of decimal places for shortened numbers.",
+                order    = 8.2,
+                min      = 0,
+                max      = 2,
+                step     = 1,
+                hidden   = function()
+                    return KSBT.db.profile.general.numberFormat.style ~= "Short"
+                end,
+                get      = function() return KSBT.db.profile.general.numberFormat.decimals end,
+                set      = function(_, val) KSBT.db.profile.general.numberFormat.decimals = val end,
+            },
+
             headerFont = {
                 type  = "header",
                 name  = "Master Font",
