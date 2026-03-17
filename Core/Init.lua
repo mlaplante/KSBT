@@ -173,36 +173,10 @@ function Addon:HandleSlashCommand(input)
         self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION)
         return
 
-    -- Diagnostic: test full display chain without any combat events
-    elseif cmd == "testdisplay" then
-        self:TestDisplay()
-        return
-
-    -- Diagnostic: dump CLEU events to chat
-    elseif cmd == "probeevents" then
-        if rest and rest:lower() == "stop" then
-            self:StopEventProbe(false)
-        else
-            self:StartEventProbe(rest)
-        end
-        return
-
-    -- Diagnostic: show event registration status + live UNIT_COMBAT target probe
-    elseif cmd == "probeout" then
-        if rest and rest:lower() == "stop" then
-            self:StopOutgoingProbe()
-        else
-            self:StartOutgoingProbe(rest)
-        end
-        return
-
     end
 
     self:Print("Unknown command: " .. cmd)
     self:Print("Usage: /ksbt [minimap | debug 0-3 | reset | version]")
-    self:Print("  testdisplay              — fire test text into the Outgoing area")
-    self:Print("  probeevents [sec|stop]   — dump CLEU events to chat")
-    self:Print("  probeout [sec|stop]      — probe outgoing events (UNIT_COMBAT target)")
 end
 
 ------------------------------------------------------------------------
