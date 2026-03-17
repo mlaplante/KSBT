@@ -106,8 +106,9 @@ local function FlushMerge(key)
 
     local db = KSBT.db and KSBT.db.profile
 
-    -- Post-merge threshold check (skip for secret values)
-    if not entry.isSecret then
+    -- Post-merge threshold check (skip for secret values and whitelisted spells)
+    local isWhitelisted = entry.meta and entry.meta.whitelisted
+    if not entry.isSecret and not isWhitelisted then
         local throttle = db and db.spamControl and db.spamControl.throttling
         if throttle then
             local postMin
@@ -206,6 +207,10 @@ local function EmitOrMerge(kind, spellId, area, amount, baseText, text, color, m
                 existing.isSecret = true
             end
             if meta.isCrit then existing.hasCrit = true end
+            if meta.whitelisted then
+                existing.meta = existing.meta or {}
+                existing.meta.whitelisted = true
+            end
             if existing.timer then existing.timer:Cancel() end
             existing.timer = C_Timer.NewTimer(mergeWindow, function()
                 FlushMerge(mkey)
