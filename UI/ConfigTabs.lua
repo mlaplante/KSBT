@@ -2299,3 +2299,169 @@ function KSBT.TestScrollArea(areaName)
         end)
     end
 end
+
+------------------------------------------------------------------------
+-- TAB 9: SPELL FILTERS
+-- Per-character spell whitelist/blacklist with auto-discovery.
+-- Spells are discovered automatically during combat.
+------------------------------------------------------------------------
+function KSBT.BuildTab_SpellFilters()
+    local FILTER_MODES = {
+        ["auto"] = "Auto (use thresholds)",
+        ["show"] = "Always Show",
+        ["hide"] = "Always Hide",
+    }
+
+    local tab = {
+        type  = "group",
+        name  = "Spell Filters",
+        order = 9,
+        args  = {
+            headerFilters = {
+                type  = "header",
+                name  = "Per-Spell Filtering",
+                order = 1,
+            },
+            filterDesc = {
+                type     = "description",
+                name     = "Spells are automatically discovered as you play. Set each spell to:\n" ..
+                           "  Auto \226\128\148 normal threshold filtering\n" ..
+                           "  Always Show \226\128\148 bypass all thresholds (whitelist)\n" ..
+                           "  Always Hide \226\128\148 never display (blacklist)",
+                order    = 2,
+                fontSize = "medium",
+            },
+            resetAll = {
+                type    = "execute",
+                name    = "Reset All to Auto",
+                desc    = "Set every discovered spell back to Auto (use thresholds).",
+                order   = 3,
+                width   = "normal",
+                confirm = true,
+                confirmText = "Reset all spell filters to Auto?",
+                func    = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if filters then
+                        for _, entry in pairs(filters) do
+                            if type(entry) == "table" then
+                                entry.mode = "auto"
+                            end
+                        end
+                    end
+                end,
+            },
+            clearList = {
+                type    = "execute",
+                name    = "Clear Spell List",
+                desc    = "Wipe all discovered spells. They will re-appear as you play.",
+                order   = 4,
+                width   = "normal",
+                confirm = true,
+                confirmText = "Clear all discovered spells? They will be re-discovered in combat.",
+                func    = function()
+                    if KSBT.db and KSBT.db.char then
+                        KSBT.db.char.spellFilters = {}
+                    end
+                end,
+            },
+            noSpells = {
+                type   = "description",
+                name   = "\nNo spells discovered yet. Enter combat to auto-populate this list.",
+                order  = 5,
+                fontSize = "medium",
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return false end
+                    for _ in pairs(filters) do return true end
+                    return false
+                end,
+            },
+            headerDamage = {
+                type   = "header",
+                name   = "Damage Spells",
+                order  = 10,
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return true end
+                    for _, entry in pairs(filters) do
+                        if type(entry) == "table" and entry.kind == "damage" then return false end
+                    end
+                    return true
+                end,
+            },
+            headerHealing = {
+                type   = "header",
+                name   = "Healing Spells",
+                order  = 1000,
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return true end
+                    for _, entry in pairs(filters) do
+                        if type(entry) == "table" and entry.kind == "heal" then return false end
+                    end
+                    return true
+                end,
+            },
+        },
+    }
+
+    -- Dynamically inject per-spell dropdowns
+    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+    if filters then
+        local damageSpells = {}
+        local healSpells = {}
+        for id, entry in pairs(filters) do
+            if type(entry) == "table" then
+                local item = { id = id, name = entry.name or ("Spell " .. id) }
+                if entry.kind == "heal" then
+                    healSpells[#healSpells + 1] = item
+                else
+                    damageSpells[#damageSpells + 1] = item
+                end
+            end
+        end
+
+        table.sort(damageSpells, function(a, b) return a.name:lower() < b.name:lower() end)
+        table.sort(healSpells, function(a, b) return a.name:lower() < b.name:lower() end)
+
+        for i, spell in ipairs(damageSpells) do
+            local spellId = spell.id
+            tab.args["dmg_" .. spellId] = {
+                type   = "select",
+                name   = spell.name,
+                desc   = "Spell ID: " .. spellId,
+                order  = 10 + i,
+                values = FILTER_MODES,
+                get    = function()
+                    local f = KSBT.db.char.spellFilters[spellId]
+                    return f and f.mode or "auto"
+                end,
+                set    = function(_, val)
+                    local f = KSBT.db.char.spellFilters[spellId]
+                    if f then f.mode = val end
+                end,
+            }
+        end
+
+        for i, spell in ipairs(healSpells) do
+            local spellId = spell.id
+            tab.args["heal_" .. spellId] = {
+                type   = "select",
+                name   = spell.name,
+                desc   = "Spell ID: " .. spellId,
+                order  = 1000 + i,
+                values = FILTER_MODES,
+                get    = function()
+                    local f = KSBT.db.char.spellFilters[spellId]
+                    return f and f.mode or "auto"
+                end,
+                set    = function(_, val)
+                    local f = KSBT.db.char.spellFilters[spellId]
+                    if f then f.mode = val end
+                end,
+            }
+        end
+    end
+
+    return tab
+end

@@ -135,6 +135,11 @@ function KSBT.BuildOptionsTable()
             media = KSBT.BuildTab_Media(),
 
             ----------------------------------------------------------------
+            -- Tab 9: Spell Filters
+            ----------------------------------------------------------------
+            spellFilters = KSBT.BuildTab_SpellFilters(),
+
+            ----------------------------------------------------------------
             -- Profiles tab placeholder (injected by Init.lua after DB init)
             ----------------------------------------------------------------
         },
