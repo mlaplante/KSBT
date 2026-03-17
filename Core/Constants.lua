@@ -67,6 +67,11 @@ KSBT.SCROLL_HEIGHT_MAX  = 600
 KSBT.MERGE_WINDOW_MIN = 0.5
 KSBT.MERGE_WINDOW_MAX = 5.0
 
+KSBT.POST_MERGE_THRESHOLD_MIN = 0
+KSBT.POST_MERGE_THRESHOLD_MAX = 100000
+KSBT.POST_MERGE_THRESHOLD_SOFT_MAX = 50000
+KSBT.POST_MERGE_THRESHOLD_STEP = 500
+
 ------------------------------------------------------------------------
 -- Damage School Indices (matches WoW API school masks)
 ------------------------------------------------------------------------
