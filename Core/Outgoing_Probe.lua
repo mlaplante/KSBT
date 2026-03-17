@@ -81,7 +81,7 @@ local function FlushMerge(key)
             else
                 postMin = tonumber(throttle.postMergeHealing) or 0
             end
-            if postMin > 0 and entry.totalAmount < postMin then
+            if postMin > 0 and entry.count > 1 and entry.totalAmount < postMin then
                 return  -- merged total below post-merge threshold; discard
             end
         end
@@ -118,7 +118,9 @@ local function FlushMerge(key)
 
     -- Crit marker: if any tick in the group was a crit, promote the merged display
     local color = entry.color
-    local meta = entry.meta or {}
+    -- Shallow-copy meta to avoid mutating the original reference
+    local meta = {}
+    for k, v in pairs(entry.meta or {}) do meta[k] = v end
     if entry.hasCrit then
         text = text .. "!"
         meta.isCrit = true
