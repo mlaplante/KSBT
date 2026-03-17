@@ -505,6 +505,11 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
         local amt, isSecret = ReadAmount(evt.amount)
         if evt.isSecret then isSecret = true end
 
+        -- Record for percentile tracking (before filtering, all hits count)
+        if not isSecret and evt.spellId then
+            RecordSpellAmount(evt.spellId, amt)
+        end
+
         -- When readable: apply min-threshold and spam controls.
         if not isSecret and spellFilterMode ~= "show" then
             if amt <= 0 then return end
@@ -610,6 +615,11 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if displayAmt <= 0 then return end
         end
         -- Secret: skip all arithmetic checks; trust CLEU that an event occurred.
+
+        -- Record for percentile tracking (use displayAmt which accounts for overheal)
+        if not isSecret and not overSecret and evt.spellId and displayAmt and displayAmt > 0 then
+            RecordSpellAmount(evt.spellId, displayAmt)
+        end
 
         local baseText
         if isSecret or overSecret then
