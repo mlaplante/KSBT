@@ -187,4 +187,8 @@ KSBT.DEFAULTS = {
             log            = {},
         },
     },
+
+    char = {
+        spellFilters = {},
+    },
 }
