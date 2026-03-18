@@ -35,7 +35,7 @@ end
 ------------------------------------------------------------------------
 -- Helper: Build font dropdown values from LibSharedMedia
 -- Returns a table suitable for AceConfig select "values".
--- Uses standard select type â€” no LSM30_Font widget required.
+-- Uses standard select type â€" no LSM30_Font widget required.
 ------------------------------------------------------------------------
 function KSBT.BuildFontDropdown()
     local fonts = {}
@@ -54,7 +54,7 @@ end
 ------------------------------------------------------------------------
 -- Helper: Build sound dropdown values from LibSharedMedia
 -- Returns a table suitable for AceConfig select "values".
--- Uses standard select type â€” no LSM30_Sound widget required.
+-- Uses standard select type â€" no LSM30_Sound widget required.
 -- Always includes a "None" option at the top.
 ------------------------------------------------------------------------
 function KSBT.BuildSoundDropdown()
@@ -176,8 +176,8 @@ function KSBT.ApplyStrikeSilverStyling()
     if not ACD then return end
 
     -- Hook Open so we can style the frame each time it appears
-    hooksecurefunc(ACD, “Open”, function(self, appName)
-        if appName ~= “KrothSBT” then return end
+    hooksecurefunc(ACD, "Open", function(self, appName)
+        if appName ~= "KrothSBT" then return end
 
         -- AceConfigDialog stores open frames in self.OpenFrames[appName]
         local frame = self.OpenFrames[appName]
@@ -199,8 +199,8 @@ function KSBT.ApplyStrikeSilverStyling()
             end
 
             f:SetBackdrop({
-                bgFile   = “Interface\\Buttons\\WHITE8X8”,
-                edgeFile = “Interface\\Tooltips\\UI-Tooltip-Border”,
+                bgFile   = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
                 edgeSize = BORDER_SIZE_ROUNDED,
                 insets   = { left = BORDER_INSET, right = BORDER_INSET,
                              top = BORDER_INSET, bottom = BORDER_INSET },
@@ -209,7 +209,7 @@ function KSBT.ApplyStrikeSilverStyling()
             -- Frame background: Dark gunmetal
             f:SetBackdropColor(dk.r, dk.g, dk.b, 0.95)
 
-            -- Border: Chrome silver â€” visible on dark background
+            -- Border: Chrome silver â€" visible on dark background
             f:SetBackdropBorderColor(border.r, border.g, border.b, 1.0)
 
             -- Style the title bar text if present
@@ -217,9 +217,9 @@ function KSBT.ApplyStrikeSilverStyling()
             if not titleRegion then
                 -- AceConfigDialog title is typically a FontString child
                 for _, region in pairs({ f:GetRegions() }) do
-                    if region:IsObjectType(“FontString”) then
+                    if region:IsObjectType("FontString") then
                         local text = region:GetText()
-                        if text and text:find(“KrothSBT”) then
+                        if text and text:find("KrothSBT") then
                             region:SetTextColor(KSBT.COLORS.TEXT_LIGHT.r,
                                                 KSBT.COLORS.TEXT_LIGHT.g,
                                                 KSBT.COLORS.TEXT_LIGHT.b, 1.0)
@@ -250,8 +250,8 @@ function KSBT.ApplyStrikeSilverStyling()
 
     -- Hook Close to clear ownership flags so pooled widgets don't
     -- contaminate other addons when reused from the AceGUI pool.
-    hooksecurefunc(ACD, “Close”, function(self, appName)
-        if appName ~= “KrothSBT” then return end
+    hooksecurefunc(ACD, "Close", function(self, appName)
+        if appName ~= "KrothSBT" then return end
 
         local frame = self.OpenFrames and self.OpenFrames[appName]
         if not frame then return end
