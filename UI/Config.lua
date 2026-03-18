@@ -176,12 +176,16 @@ function KSBT.ApplyStrikeSilverStyling()
     if not ACD then return end
 
     -- Hook Open so we can style the frame each time it appears
-    hooksecurefunc(ACD, "Open", function(self, appName)
-        if appName ~= "KrothSBT" then return end
+    hooksecurefunc(ACD, “Open”, function(self, appName)
+        if appName ~= “KrothSBT” then return end
 
         -- AceConfigDialog stores open frames in self.OpenFrames[appName]
         local frame = self.OpenFrames[appName]
         if not frame or not frame.frame then return end
+
+        -- Mark this AceGUI frame tree as owned by us so hooks become
+        -- no-ops once the widgets return to the shared pool.
+        frame.ksbtOwned = true
 
         local f = frame.frame  -- The actual WoW frame widget
         local dk = KSBT.COLORS.DARK
@@ -195,10 +199,10 @@ function KSBT.ApplyStrikeSilverStyling()
             end
 
             f:SetBackdrop({
-                bgFile   = "Interface\\Buttons\\WHITE8X8",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                bgFile   = “Interface\\Buttons\\WHITE8X8”,
+                edgeFile = “Interface\\Tooltips\\UI-Tooltip-Border”,
                 edgeSize = BORDER_SIZE_ROUNDED,
-                insets   = { left = BORDER_INSET, right = BORDER_INSET, 
+                insets   = { left = BORDER_INSET, right = BORDER_INSET,
                              top = BORDER_INSET, bottom = BORDER_INSET },
             })
 
@@ -213,9 +217,9 @@ function KSBT.ApplyStrikeSilverStyling()
             if not titleRegion then
                 -- AceConfigDialog title is typically a FontString child
                 for _, region in pairs({ f:GetRegions() }) do
-                    if region:IsObjectType("FontString") then
+                    if region:IsObjectType(“FontString”) then
                         local text = region:GetText()
-                        if text and text:find("KrothSBT") then
+                        if text and text:find(“KrothSBT”) then
                             region:SetTextColor(KSBT.COLORS.TEXT_LIGHT.r,
                                                 KSBT.COLORS.TEXT_LIGHT.g,
                                                 KSBT.COLORS.TEXT_LIGHT.b, 1.0)
@@ -243,6 +247,43 @@ function KSBT.ApplyStrikeSilverStyling()
             KSBT.EnsurePopupsOnTop(f)
         end
     end)
+
+    -- Hook Close to clear ownership flags so pooled widgets don't
+    -- contaminate other addons when reused from the AceGUI pool.
+    hooksecurefunc(ACD, “Close”, function(self, appName)
+        if appName ~= “KrothSBT” then return end
+
+        local frame = self.OpenFrames and self.OpenFrames[appName]
+        if not frame then return end
+
+        -- Clear ownership on the root frame and all children
+        KSBT.ClearOwnership(frame)
+    end)
+end
+
+------------------------------------------------------------------------
+-- Clear KSBT ownership flags from an AceGUI widget tree.
+-- Once cleared, any hooksecurefunc hooks we installed on pooled widgets
+-- become no-ops, preventing style bleed into other addons.
+------------------------------------------------------------------------
+function KSBT.ClearOwnership(widget)
+    if not widget then return end
+    widget.ksbtOwned = nil
+
+    -- Clear styling flags so other addons' skinning can re-apply
+    if widget.border then
+        widget.border.tsbtStyled = nil
+    end
+    if widget.frame then
+        widget.frame.tsbtStyled = nil
+    end
+
+    -- Recurse into children
+    if widget.children then
+        for _, child in ipairs(widget.children) do
+            KSBT.ClearOwnership(child)
+        end
+    end
 end
 
 ------------------------------------------------------------------------
@@ -265,6 +306,9 @@ function KSBT.StyleTabButtons(aceFrame)
 
     if not tabGroup or not tabGroup.tabs then return end
 
+    -- Propagate ownership flag to the TabGroup so hooks check it
+    tabGroup.ksbtOwned = true
+
     local accent = KSBT.COLORS.ACCENT
     local tabInactive = KSBT.COLORS.TAB_INACTIVE
     local border = KSBT.COLORS.BORDER
@@ -280,11 +324,14 @@ function KSBT.StyleTabButtons(aceFrame)
         end
     end
 
-    -- Hook tab selection to recolor active tab with accent
+    -- Hook tab selection to recolor active tab with accent.
+    -- Guard: only apply colors while this widget is owned by us;
+    -- once released to the AceGUI pool the hook becomes a no-op.
     if not tabGroup.tsbtTabHooked then
         tabGroup.tsbtTabHooked = true
 
         hooksecurefunc(tabGroup, "SelectTab", function(self, tabValue)
+            if not self.ksbtOwned then return end
             if not self.tabs then return end
             for _, tab in ipairs(self.tabs) do
                 local fs = tab:GetFontString()
@@ -447,7 +494,8 @@ function KSBT.HookCooldownOverlayTabSwitch(aceFrame)
     end
 
     if tabGroup.SelectTab then
-        hooksecurefunc(tabGroup, "SelectTab", function(_, group)
+        hooksecurefunc(tabGroup, "SelectTab", function(self, group)
+            if not self.ksbtOwned then return end
             update(group)
         end)
     end
