@@ -110,9 +110,9 @@ function KSBT.BuildOptionsTable()
             incoming = KSBT.BuildTab_Incoming(),
 
             ----------------------------------------------------------------
-            -- Tab 4: Outgoing (hidden until Midnight event registration resolved)
+            -- Tab 4: Outgoing
             ----------------------------------------------------------------
-            -- outgoing = KSBT.BuildTab_Outgoing(),
+            outgoing = KSBT.BuildTab_Outgoing(),
 
             ----------------------------------------------------------------
             -- Tab 5: Pets
