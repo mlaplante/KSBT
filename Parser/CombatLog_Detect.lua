@@ -327,15 +327,32 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
         if now == _lastCLEUOutgoing then return end
 
         -- UNIT_COMBAT "target" fires for ALL sources hitting the target
-        -- (entire raid/group). Without CLEU gating, we cannot attribute
-        -- damage to the player — reject unconditionally.
-        if not CombatLog._cleuRegistered then return end
-        if not _cleuOutgoingMark then return end
-        _cleuOutgoingMark = false
-
-        -- Attach last-cast spell info if recent enough (1.5s window).
+        -- (entire raid/group). Attribution strategy depends on CLEU:
+        --
+        -- CLEU available (Classic/Retail): require _cleuOutgoingMark flag
+        -- set by HandleCLEU when source flags match the player.
+        --
+        -- CLEU unavailable (Midnight): use spell-cast correlation — only
+        -- accept the event if UNIT_SPELLCAST_SUCCEEDED fired within 400ms.
+        -- This means auto-attacks are skipped (no cast event), but all
+        -- spell/ability damage is attributed correctly.
         local spellId, spellName
-        if _lastCastTime and (now - _lastCastTime) < 1.5 then
+
+        if CombatLog._cleuRegistered then
+            -- CLEU path: strict flag-based attribution
+            if not _cleuOutgoingMark then return end
+            _cleuOutgoingMark = false
+
+            -- Attach last-cast spell info if recent enough (1.5s window).
+            if _lastCastTime and (now - _lastCastTime) < 1.5 then
+                spellId   = _lastCastSpellId
+                spellName = _lastCastSpellName
+            end
+        else
+            -- Midnight path: spell-cast correlation (400ms window).
+            -- Reject if no recent player cast — event is either an
+            -- auto-attack or another player's damage.
+            if not _lastCastTime or (now - _lastCastTime) > 0.4 then return end
             spellId   = _lastCastSpellId
             spellName = _lastCastSpellName
         end
@@ -417,18 +434,16 @@ else
 end
 
 -- UNIT_COMBAT: register directly at load time.
--- When CLEU is available, register for both "player" (incoming) and "target"
--- (outgoing, gated by _cleuOutgoingMark). When CLEU is NOT available (Midnight),
--- only register for "player" — UNIT_COMBAT "target" fires for ALL sources
--- hitting the target (entire raid), and without CLEU there is no way to
--- attribute damage to the player vs other raid members.
+-- Always register for both "player" (incoming) and "target" (outgoing).
+-- When CLEU is available: outgoing is gated by _cleuOutgoingMark.
+-- When CLEU is unavailable (Midnight): outgoing is gated by spell-cast
+-- correlation (400ms window from UNIT_SPELLCAST_SUCCEEDED).
 if _ucFrame.RegisterUnitEvent then
+    _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
     if CombatLog._cleuRegistered then
-        _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
         Debug(1, "Parser.CombatLog: UNIT_COMBAT registered for player + target (CLEU gated)")
     else
-        _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player")
-        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered for player only (no CLEU, no outgoing)")
+        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered for player + target (spell-cast correlated)")
     end
 else
     _ucFrame:RegisterEvent("UNIT_COMBAT")
