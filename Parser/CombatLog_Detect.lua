@@ -50,8 +50,12 @@ local function IsCrit(critical)
 end
 
 local function IsPlayerMine(flags)
-    if not flags or type(flags) ~= "number" then return false end
-    return band(flags, FLAG_MINE) ~= 0 and band(flags, FLAG_PLAYER) ~= 0
+    if not flags then return false end
+    -- flags can be a secret number in boss encounters; pcall protects band()
+    local ok, result = pcall(function()
+        return band(flags, FLAG_MINE) ~= 0 and band(flags, FLAG_PLAYER) ~= 0
+    end)
+    return ok and result or false
 end
 
 local function EmitOutgoing(evt)
