@@ -326,10 +326,11 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
         -- Outgoing fallback: skip if CLEU already handled this frame.
         if now == _lastCLEUOutgoing then return end
 
-        -- UNIT_COMBAT "target" fires for ALL sources hitting the target.
-        -- Only emit if CLEU marked this as our hit, OR if CLEU is not
-        -- registered (no gating available, accept false positives).
-        if CombatLog._cleuRegistered and not _cleuOutgoingMark then return end
+        -- UNIT_COMBAT "target" fires for ALL sources hitting the target
+        -- (entire raid/group). Without CLEU gating, we cannot attribute
+        -- damage to the player — reject unconditionally.
+        if not CombatLog._cleuRegistered then return end
+        if not _cleuOutgoingMark then return end
         _cleuOutgoingMark = false
 
         -- Attach last-cast spell info if recent enough (1.5s window).
@@ -416,13 +417,24 @@ else
 end
 
 -- UNIT_COMBAT: register directly at load time.
+-- When CLEU is available, register for both "player" (incoming) and "target"
+-- (outgoing, gated by _cleuOutgoingMark). When CLEU is NOT available (Midnight),
+-- only register for "player" — UNIT_COMBAT "target" fires for ALL sources
+-- hitting the target (entire raid), and without CLEU there is no way to
+-- attribute damage to the player vs other raid members.
 if _ucFrame.RegisterUnitEvent then
-    _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+    if CombatLog._cleuRegistered then
+        _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player", "target")
+        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered for player + target (CLEU gated)")
+    else
+        _ucFrame:RegisterUnitEvent("UNIT_COMBAT", "player")
+        Debug(1, "Parser.CombatLog: UNIT_COMBAT registered for player only (no CLEU, no outgoing)")
+    end
 else
     _ucFrame:RegisterEvent("UNIT_COMBAT")
+    Debug(1, "Parser.CombatLog: UNIT_COMBAT registered (legacy, ungated)")
 end
 CombatLog._ucRegistered = true
-Debug(1, "Parser.CombatLog: UNIT_COMBAT registered successfully")
 
 -- UNIT_SPELLCAST_SUCCEEDED: register directly at load time.
 if _spellFrame.RegisterUnitEvent then
