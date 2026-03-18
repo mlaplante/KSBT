@@ -2385,7 +2385,7 @@ function KSBT.TestScrollArea(areaName)
                 })
             else
                 -- Fallback: print to chat until Display system is implemented
-                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
+                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r -> [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
             end
         end)
     end
