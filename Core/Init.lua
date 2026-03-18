@@ -214,65 +214,6 @@ end
 function Addon:OpenConfig()
     if self.configDialog then
         self.configDialog:Open("KrothSBT")
-
-        local frame = self.configDialog.OpenFrames["KrothSBT"]
-        if frame and frame.frame then
-            local f = frame.frame
-
-            -- Prevent AceConfigDialog from auto-closing when spellbook opens
-            if not f.tsbtHooked then
-                f.tsbtHooked = true
-
-                -- Store original Hide function
-                local origHide = f.Hide
-
-                -- Hook Hide to block auto-closes
-                f.Hide = function(self, ...)
-                    -- Only allow closes when explicitly permitted
-                    if not self.tsbtAllowClose then return end
-                    return origHide(self, ...)
-                end
-            end
-
-            -- Find the close button by searching the frame's children
-            local function findCloseButton(parent, depth)
-                depth = depth or 0
-                if depth > 0 then return end -- ONLY check depth 0!
-
-                for i = 1, parent:GetNumChildren() do
-                    local child = select(i, parent:GetChildren())
-                    if child and child.GetObjectType and child:GetObjectType() ==
-                        "Button" then
-                        local text = child:GetText()
-                        if text and (text:lower():match("close") or text == "X") then
-                            child:HookScript("PreClick", function()
-                                f.tsbtAllowClose = true
-                                C_Timer.After(0.05, function()
-                                    f.tsbtAllowClose = false
-                                end)
-                            end)
-                        end
-                    end
-                end
-            end
-
-            findCloseButton(f)
-
-            -- ESC key handler
-            f:EnableKeyboard(true)
-            f:SetPropagateKeyboardInput(true)
-            f:SetScript("OnKeyDown", function(self, key)
-                if key == "ESCAPE" then
-                    self.tsbtAllowClose = true
-                    self:Hide()
-                    C_Timer.After(0.05, function()
-                        if self then
-                            self.tsbtAllowClose = false
-                        end
-                    end)
-                end
-            end)
-        end
     end
 end
 
