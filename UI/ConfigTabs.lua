@@ -1880,32 +1880,12 @@ function KSBT.BuildTab_Cooldowns()
                 name  = "Tracked Spells",
                 order = 10,
             },
-            dragDropZonePlaceholder = {
-                type     = "description",
-                name     = function()
-                    -- Trigger overlay creation when this renders
-                    if KSBT.CreateCooldownDropOverlay then
-                        C_Timer.After(0.1, KSBT.CreateCooldownDropOverlay)
-                    end
-                    return ""  -- Empty - overlay will render over this space
-                end,
-                order    = 11,
-                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
-            },
-            manualEntryLabel = {
-                type     = "description",
-                name     = "\n\n\n\n\n\n\n\n|cFFFFFFFFOr enter spell ID manually:|r",
-                order    = 20,
-                fontSize = "medium",
-                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
-            },
             addSpellInput = {
                 type     = "input",
                 name     = "Spell ID",
                 desc     = "Enter a numeric spell ID to track.",
-                order    = 21,
+                order    = 11,
                 width    = "normal",
-                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
                 get      = function() return cooldownSpellInput end,
                 set      = function(_, val)
                     local spellID = tonumber(val)
@@ -1932,10 +1912,9 @@ function KSBT.BuildTab_Cooldowns()
                 type     = "execute",
                 name     = "Add",
                 desc     = "Add the entered spell ID to tracking.",
-                order    = 22,
+                order    = 12,
                 width    = "half",
                 disabled = function()
-                    if not KSBT.db.profile.cooldowns.enabled then return true end
                     return tonumber(cooldownSpellInput) == nil
                 end,
                 func     = function()
@@ -1954,6 +1933,28 @@ function KSBT.BuildTab_Cooldowns()
                     end
                 end,
             },
+            dragDropContainer = {
+                type     = "group",
+                name     = " ",
+                order    = 14,
+                inline   = true,
+                args     = {
+                    dragDropLabel = {
+                        type     = "description",
+                        name     = function()
+                            C_Timer.After(0, function()
+                                if KSBT.HookDragDropInline then
+                                    KSBT.HookDragDropInline()
+                                end
+                            end)
+                            return "Drag from spellbook or action bar:\n\n|cFF4A9EFF[ Drag Spell Here ]|r"
+                        end,
+                        order    = 1,
+                        fontSize = "medium",
+                        width    = "full",
+                    },
+                },
+            },
             trackedListHeader = {
                 type     = "description",
                 name     = function()
@@ -1965,13 +1966,13 @@ function KSBT.BuildTab_Cooldowns()
                     end
                     return "\n|cFFFFFFFFCurrently tracking " .. count .. " spell(s):|r"
                 end,
-                order    = 30,
+                order    = 20,
                 fontSize = "medium",
             },
             trackedListContainer = {
                 type     = "group",
                 name     = "Tracked Spells List",
-                order    = 31,
+                order    = 21,
                 childGroups = "tree",  -- Makes it a collapsible tree with auto-scroll
                 hidden   = function()
                     local count = 0
@@ -2384,7 +2385,7 @@ function KSBT.TestScrollArea(areaName)
                 })
             else
                 -- Fallback: print to chat until Display system is implemented
-                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r -> [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
+                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
             end
         end)
     end

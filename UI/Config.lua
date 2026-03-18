@@ -35,7 +35,7 @@ end
 ------------------------------------------------------------------------
 -- Helper: Build font dropdown values from LibSharedMedia
 -- Returns a table suitable for AceConfig select "values".
--- Uses standard select type â€" no LSM30_Font widget required.
+-- Uses standard select type - no LSM30_Font widget required.
 ------------------------------------------------------------------------
 function KSBT.BuildFontDropdown()
     local fonts = {}
@@ -54,7 +54,7 @@ end
 ------------------------------------------------------------------------
 -- Helper: Build sound dropdown values from LibSharedMedia
 -- Returns a table suitable for AceConfig select "values".
--- Uses standard select type â€" no LSM30_Sound widget required.
+-- Uses standard select type - no LSM30_Sound widget required.
 -- Always includes a "None" option at the top.
 ------------------------------------------------------------------------
 function KSBT.BuildSoundDropdown()
@@ -149,6 +149,32 @@ function KSBT.BuildOptionsTable()
 end
 
 ------------------------------------------------------------------------
+-- ElvUI Detection
+-- Returns true if ElvUI is loaded and active.
+--
+-- We use _G["ElvUI"] as the primary check: ElvUI always registers itself
+-- as a global table on load, making this the most reliable and version-
+-- agnostic method (works on all WoW builds including Midnight 12.0).
+-- As a belt-and-suspenders fallback we also check C_AddOns (12.0+) and
+-- the legacy IsAddOnLoaded global (pre-12.0).
+------------------------------------------------------------------------
+local function IsElvUIActive()
+    if _G["ElvUI"] ~= nil then return true end
+
+    -- Fallback: addon-loaded API (version-safe)
+    if C_AddOns and C_AddOns.IsAddOnLoaded then
+        return C_AddOns.IsAddOnLoaded("ElvUI") == true
+    end
+
+    -- Legacy pre-12.0 fallback
+    if IsAddOnLoaded then
+        return IsAddOnLoaded("ElvUI") == true
+    end
+
+    return false
+end
+
+------------------------------------------------------------------------
 -- Strike Silver Styling
 -- Hooks into AceConfigDialog:Open to apply custom backdrop and colors
 -- to the configuration window after it's created by Ace3.
@@ -158,17 +184,44 @@ end
 --   Borders:    Chrome silver (#8B98A8), 2-3px, consistent everywhere
 --   Active tab: Electric Blue (#4A9EFF)
 --   Inactive:   Light Silver (#C0C0C0)
+--
+-- ElvUI compatibility:
+--   When ElvUI is active it skins ALL AceGUI frames through its own
+--   comprehensive skinning system. KSBT's custom styling would fight
+--   with ElvUI's system, contaminate the shared AceGUI widget pool,
+--   and leave visual artifacts on ElvUI's own option windows.
+--
+--   Therefore: if ElvUI is detected, ApplyStrikeSilverStyling() is a
+--   no-op. ElvUI will apply its own skin to the KSBT config window
+--   automatically, just as it does for every other AceConfigDialog
+--   window. No cleanup hooks are needed because nothing was changed.
+--
+-- Cleanup strategy (non-ElvUI only):
+--   We hook frame.frame:Hide() via hooksecurefunc inside the Open hook.
+--   This fires on every real hide regardless of how the window was
+--   closed, and runs before AceGUI releases widgets back to the pool,
+--   giving us a guaranteed cleanup window to reset all backdrop colors
+--   and ownership flags.
 ------------------------------------------------------------------------
 
 -- Track whether we've already hooked (prevent double-hooking)
 local strikeSilverHooked = false
 
 -- Border sizes for rounded vs sharp borders
-local BORDER_SIZE_SHARP = 2
+local BORDER_SIZE_SHARP   = 2
 local BORDER_SIZE_ROUNDED = 20  -- Thicker border with better rounding visibility
-local BORDER_INSET = 3         -- No gap between blue frame and border
+local BORDER_INSET        = 3   -- No gap between blue frame and border
 
 function KSBT.ApplyStrikeSilverStyling()
+    ------------------------------------------------------------------------
+    -- ElvUI guard: if ElvUI is active, skip ALL custom styling entirely.
+    -- ElvUI owns the AceGUI widget pool and will skin the KSBT window
+    -- through its own system. Any backdrop changes KSBT makes here would
+    -- leak back into ElvUI's own option windows when the widgets are
+    -- returned to the shared pool.
+    ------------------------------------------------------------------------
+    if IsElvUIActive() then return end
+
     if strikeSilverHooked then return end
     strikeSilverHooked = true
 
@@ -209,7 +262,7 @@ function KSBT.ApplyStrikeSilverStyling()
             -- Frame background: Dark gunmetal
             f:SetBackdropColor(dk.r, dk.g, dk.b, 0.95)
 
-            -- Border: Chrome silver â€" visible on dark background
+            -- Border: Chrome silver - visible on dark background
             f:SetBackdropBorderColor(border.r, border.g, border.b, 1.0)
 
             -- Style the title bar text if present
@@ -237,48 +290,98 @@ function KSBT.ApplyStrikeSilverStyling()
         -- Style inner content containers (section borders, tab bar, etc.)
         KSBT.StyleInnerContainers(frame)
 
-        -- Ensure the Cooldowns drag/drop overlay is ONLY visible on the Cooldowns tab.
-        if KSBT.HookCooldownOverlayTabSwitch then
-            KSBT.HookCooldownOverlayTabSwitch(frame)
-        end
-
         -- Keep confirmation popups above the AceConfig window.
         if KSBT.EnsurePopupsOnTop then
             KSBT.EnsurePopupsOnTop(f)
         end
-    end)
 
-    -- Hook Close to clear ownership flags so pooled widgets don't
-    -- contaminate other addons when reused from the AceGUI pool.
-    hooksecurefunc(ACD, "Close", function(self, appName)
-        if appName ~= "KrothSBT" then return end
+        ------------------------------------------------------------------------
+        -- Reliable cleanup: hook frame.frame:Hide() via hooksecurefunc.
+        --
+        -- WHY NOT hooksecurefunc(ACD, "Close")?
+        --   AceConfigDialog:Close() only sets a closing flag and schedules
+        --   a Hide via OnUpdate. In practice the config window is often closed
+        --   by calling frame:Hide() directly (e.g. the Close-button override
+        --   in Init.lua calls origHide, bypassing ACD:Close entirely). The
+        --   ACD:Close hook therefore fires either never or too early.
+        --
+        -- WHY hooksecurefunc on f.Hide?
+        --   hooksecurefunc appends our function after every call to f:Hide(),
+        --   regardless of how Hide was reached. It fires before AceGUI's
+        --   OnHide -> OnClose -> Release chain removes widgets from the tree,
+        --   so frame.children is still intact when we run ClearOwnership.
+        --   The ksbtOwned guard in all SelectTab hooks ensures that after
+        --   Release the hooks are no-ops for other addons' widgets.
+        ------------------------------------------------------------------------
+        if not f.tsbtHideHooked then
+            f.tsbtHideHooked = true
 
-        local frame = self.OpenFrames and self.OpenFrames[appName]
-        if not frame then return end
+            hooksecurefunc(f, "Hide", function(self)
+                -- Reset drag-drop hook state so next open re-hooks cleanly
+                if KSBT.ResetDragDropInline then
+                    KSBT.ResetDragDropInline()
+                end
 
-        -- Clear ownership on the root frame and all children
-        KSBT.ClearOwnership(frame)
+                -- Reset main frame backdrop to neutral so pooled AceGUI
+                -- frames don't carry KSBT's colors into other addons.
+                if self.SetBackdrop then
+                    self:SetBackdrop(nil)
+                end
+                if self.SetBackdropColor then
+                    self:SetBackdropColor(0, 0, 0, 0.9)
+                    self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1.0)
+                end
+                self.tsbtStyled = nil
+
+                -- Walk the AceGUI widget tree and clear ownership flags,
+                -- tab-hook guards, and all border backdrop colors/textures.
+                local aceFrame = ACD.OpenFrames and ACD.OpenFrames["KrothSBT"]
+                if aceFrame then
+                    KSBT.ClearOwnership(aceFrame)
+                end
+            end)
+        end
     end)
 end
 
 ------------------------------------------------------------------------
--- Clear KSBT ownership flags from an AceGUI widget tree.
--- Once cleared, any hooksecurefunc hooks we installed on pooled widgets
--- become no-ops, preventing style bleed into other addons.
+-- Clear KSBT ownership flags and backdrop colors/textures from an
+-- AceGUI widget tree. Once cleared, hooksecurefunc hooks installed on
+-- pooled widgets become no-ops (via ksbtOwned guard), preventing style
+-- bleed into other addons that reuse widgets from the AceGUI pool.
 ------------------------------------------------------------------------
 function KSBT.ClearOwnership(widget)
     if not widget then return end
     widget.ksbtOwned = nil
 
-    -- Clear styling flags so other addons' skinning can re-apply
+    -- Reset border frame: remove the backdrop texture entirely (SetBackdrop nil)
+    -- AND reset colors. Resetting only the color is not enough - the edgeFile
+    -- texture (UI-Tooltip-Border) would remain visible on ElvUI's InlineGroup
+    -- containers even with a transparent color.
     if widget.border then
         widget.border.tsbtStyled = nil
+        if widget.border.SetBackdrop then
+            widget.border:SetBackdrop(nil)
+        end
+        if widget.border.SetBackdropColor then
+            widget.border:SetBackdropColor(0, 0, 0, 0)
+            widget.border:SetBackdropBorderColor(1, 1, 1, 1)
+        end
     end
+
+    -- Clear the styled flag on the underlying WoW frame so the next
+    -- Open() call re-applies KSBT styling from scratch.
     if widget.frame then
         widget.frame.tsbtStyled = nil
     end
 
-    -- Recurse into children
+    -- Clear the tab-hook guard so it can be re-registered if the widget
+    -- is re-acquired from the pool for a future KSBT open.
+    if widget.tsbtTabHooked then
+        widget.tsbtTabHooked = nil
+    end
+
+    -- Recurse into children (TabGroup, InlineGroups, etc.)
     if widget.children then
         for _, child in ipairs(widget.children) do
             KSBT.ClearOwnership(child)
@@ -309,9 +412,9 @@ function KSBT.StyleTabButtons(aceFrame)
     -- Propagate ownership flag to the TabGroup so hooks check it
     tabGroup.ksbtOwned = true
 
-    local accent = KSBT.COLORS.ACCENT
+    local accent    = KSBT.COLORS.ACCENT
     local tabInactive = KSBT.COLORS.TAB_INACTIVE
-    local border = KSBT.COLORS.BORDER
+    local border    = KSBT.COLORS.BORDER
 
     -- Style tab button backgrounds and text
     for _, tab in ipairs(tabGroup.tabs) do
@@ -333,6 +436,12 @@ function KSBT.StyleTabButtons(aceFrame)
         hooksecurefunc(tabGroup, "SelectTab", function(self, tabValue)
             if not self.ksbtOwned then return end
             if not self.tabs then return end
+
+            -- Reset drag-drop hook on tab switch so it re-hooks on next render
+            if KSBT.ResetDragDropInline then
+                KSBT.ResetDragDropInline()
+            end
+
             for _, tab in ipairs(self.tabs) do
                 local fs = tab:GetFontString()
                 if fs then
@@ -358,12 +467,13 @@ function KSBT.StyleTabButtons(aceFrame)
             bgFile   = "Interface\\Buttons\\WHITE8X8",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
             edgeSize = BORDER_SIZE_ROUNDED,
-            insets   = { left = BORDER_INSET, right = BORDER_INSET, 
+            insets   = { left = BORDER_INSET, right = BORDER_INSET,
                          top = BORDER_INSET, bottom = BORDER_INSET },
         })
         local dk = KSBT.COLORS.DARK
         tabBorder:SetBackdropColor(dk.r, dk.g, dk.b, 0.8)
         tabBorder:SetBackdropBorderColor(border.r, border.g, border.b, 1.0)
+        tabBorder.tsbtStyled = true
     end
 end
 
@@ -375,7 +485,7 @@ end
 function KSBT.StyleInnerContainers(aceFrame)
     if not aceFrame or not aceFrame.children then return end
 
-    local dk = KSBT.COLORS.DARK
+    local dk     = KSBT.COLORS.DARK
     local border = KSBT.COLORS.BORDER
 
     local function styleChild(widget)
@@ -390,7 +500,7 @@ function KSBT.StyleInnerContainers(aceFrame)
                     bgFile   = "Interface\\Buttons\\WHITE8X8",
                     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
                     edgeSize = BORDER_SIZE_ROUNDED,
-                    insets   = { left = BORDER_INSET, right = BORDER_INSET, 
+                    insets   = { left = BORDER_INSET, right = BORDER_INSET,
                                  top = BORDER_INSET, bottom = BORDER_INSET },
                 })
                 -- Slightly lighter than main background for depth
@@ -456,288 +566,155 @@ function KSBT.EnsurePopupsOnTop(anchorFrame)
 end
 
 ------------------------------------------------------------------------
--- Cooldown Overlay Visibility Control
--- The overlay is parented to the TabGroup content frame, so we must
--- explicitly hide it when the user is not on the Cooldowns tab.
+-- Cooldown Drag-and-Drop (native AceGUI integration)
+--
+-- Instead of a floating WoW frame that hovers above the UI, we find
+-- the actual FontString frame that AceGUI renders for the
+-- "dragDropInline" description widget and enable drag-receiving on it.
+-- This makes the drag zone sit exactly where AceGUI placed the text,
+-- pushing other widgets down naturally like any other description widget.
+--
+-- Called via C_Timer.After(0) from the description widget's name()
+-- function, so AceGUI has finished laying out the frame before we hook.
 ------------------------------------------------------------------------
 
-KSBT.UI = KSBT.UI or {}
+local dragHookInstalled = false   -- true once EnableMouse/scripts are set
+local dragTargetFrame   = nil     -- the AceGUI frame we hooked
 
-function KSBT.SetCooldownOverlayVisible(isVisible)
-    local o = KSBT.UI and KSBT.UI.CooldownDropOverlay
-    if not o then return end
-    if isVisible then
-        o:Show()
+local function HandleSpellDrop(cursorType, id, subType)
+    if cursorType == "spell" then
+        local spellID = nil
+        if subType == "spell" or subType == "pet" then
+            if C_SpellBook and C_SpellBook.GetSpellBookItemInfo then
+                local bank = (subType == "pet") and Enum.SpellBookSpellBank.Pet
+                                                 or Enum.SpellBookSpellBank.Player
+                local info = C_SpellBook.GetSpellBookItemInfo(id, bank)
+                if info then spellID = info.spellID end
+            end
+        else
+            spellID = id
+        end
+        if spellID and spellID > 0 then
+            if not KSBT.db.profile.cooldowns.tracked[spellID] then
+                KSBT.db.profile.cooldowns.tracked[spellID] = true
+                KSBT.Addon:Print("Now tracking spell ID: " .. spellID)
+                LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
+            else
+                KSBT.Addon:Print("Already tracking spell ID: " .. spellID)
+            end
+        else
+            KSBT.Addon:Print("Could not resolve spell ID. Try dragging from action bar.")
+        end
+        ClearCursor()
+
+    elseif cursorType == "item" then
+        local key = "item:" .. id
+        if not KSBT.db.profile.cooldowns.tracked[key] then
+            KSBT.db.profile.cooldowns.tracked[key] = true
+            KSBT.Addon:Print("Now tracking item ID: " .. id)
+            LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
+        else
+            KSBT.Addon:Print("Already tracking item ID: " .. id)
+        end
+        ClearCursor()
+
+    elseif cursorType == "petaction" then
+        ClearCursor()
+        KSBT.Addon:Print("Pet abilities cannot be tracked.")
     else
-        o:Hide()
+        ClearCursor()
     end
 end
 
-local cooldownOverlayTabHooked = false
+function KSBT.HookDragDropInline()
+    local ACD = LibStub("AceConfigDialog-3.0", true)
+    if not ACD then return end
+    local configFrame = ACD.OpenFrames and ACD.OpenFrames["KrothSBT"]
+    if not configFrame then return end
 
-function KSBT.HookCooldownOverlayTabSwitch(aceFrame)
-    if cooldownOverlayTabHooked then return end
-    if not aceFrame or not aceFrame.children then return end
-
-    local tabGroup
-    for _, child in ipairs(aceFrame.children) do
-        if child.type == "TabGroup" then
-            tabGroup = child
-            break
+    -- Walk the AceGUI widget tree to find the TabGroup's scroll child,
+    -- then find the description widget named "dragDropInline".
+    -- AceGUI description widgets expose their underlying frame as .frame
+    -- on the AceGUI widget object, or we can walk the content children.
+    local tabGroup = nil
+    if configFrame.children then
+        for _, c in ipairs(configFrame.children) do
+            if c.type == "TabGroup" then tabGroup = c; break end
         end
     end
     if not tabGroup then return end
-    cooldownOverlayTabHooked = true
 
-    local function update(selected)
-        KSBT.SetCooldownOverlayVisible(selected == "cooldowns")
-    end
-
-    if tabGroup.SelectTab then
-        hooksecurefunc(tabGroup, "SelectTab", function(self, group)
-            if not self.ksbtOwned then return end
-            update(group)
-        end)
-    end
-
+    -- Only hook when Cooldowns tab is active
     local selected = tabGroup.status and tabGroup.status.selected
-    update(selected)
-end
+    if selected ~= "cooldowns" then return end
 
-------------------------------------------------------------------------
--- Cooldown Drop Overlay
--- Creates a high-strata overlay frame that's parented to the tab content
--- and positioned to overlay the "Drag Spell Here" description text.
-------------------------------------------------------------------------
+    -- The TabGroup's content frame holds all rendered widgets as children.
+    -- AceGUI description widgets render as FontStrings inside a plain Frame.
+    -- We need the content frame itself as our drop target — it covers the
+    -- entire tab area and will receive drag events over the description text.
+    local contentFrame = tabGroup.content
+    if not contentFrame then return end
 
-local cooldownDropOverlay = nil
-
-function KSBT.CreateCooldownDropOverlay()
-    local ACD = LibStub("AceConfigDialog-3.0", true)
-    if not ACD then return end
-    
-    -- Find the KSBT config frame
-    local configFrame = ACD.OpenFrames["KrothSBT"]
-    if not configFrame or not configFrame.frame then return end
-    
-    -- Get the TabGroup and its content frame (where the actual options are displayed)
-    local tabGroup = nil
-    local contentFrame = nil
-    if configFrame.children then
-        for _, child in ipairs(configFrame.children) do
-            if child.type == "TabGroup" then
-                tabGroup = child
-                contentFrame = child.content
-                break
+    -- Find the specific description widget via the AceGUI child list.
+    -- The widget's .frame is the actual WoW Frame we can EnableMouse on.
+    local targetFrame = nil
+    if tabGroup.children then
+        for _, child in ipairs(tabGroup.children) do
+            -- AceGUI description widgets have type "Label" internally
+            -- and expose .frame. We identify ours by checking if its
+            -- frame contains a FontString with our text.
+            if child.frame then
+                local f = child.frame
+                for i = 1, f:GetNumRegions() do
+                    local r = select(i, f:GetRegions())
+                    if r and r.GetText and r:GetText() then
+                        local t = r:GetText()
+                        if t and t:find("Drag Spell Here") then
+                            targetFrame = f
+                            break
+                        end
+                    end
+                end
             end
+            if targetFrame then break end
         end
     end
-    
-    if not contentFrame then return end
-    
-    -- Create overlay if it doesn't exist
-    if not cooldownDropOverlay then
-        local accent = KSBT.COLORS.ACCENT
-        local dk = KSBT.COLORS.DARK
-        
-        cooldownDropOverlay = CreateFrame("Frame", "KSBT_CooldownDropOverlay", contentFrame, "BackdropTemplate")
-        cooldownDropOverlay:SetSize(520, 70)
-        cooldownDropOverlay:EnableMouse(true)
-        
-        -- CRITICAL: Set frame strata and level HIGHER than parent
-        cooldownDropOverlay:SetFrameStrata("FULLSCREEN_DIALOG")
-        cooldownDropOverlay:SetFrameLevel(contentFrame:GetFrameLevel() + 100)
-        
-        -- Backdrop styling
-        cooldownDropOverlay:SetBackdrop({
-            bgFile   = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            edgeSize = 2,
-            insets   = { left = 2, right = 2, top = 2, bottom = 2 },
-        })
-        cooldownDropOverlay:SetBackdropColor(dk.r * 1.2, dk.g * 1.2, dk.b * 1.2, 0.95)
-        cooldownDropOverlay:SetBackdropBorderColor(accent.r, accent.g, accent.b, 0.9)
-        
-        -- Icon placeholder
-        local iconBg = cooldownDropOverlay:CreateTexture(nil, "ARTWORK")
-        iconBg:SetSize(36, 36)
-        iconBg:SetPoint("LEFT", cooldownDropOverlay, "LEFT", 14, 0)
-        iconBg:SetColorTexture(0.15, 0.15, 0.15, 1.0)
-        
-        -- Icon overlay (shows after drop)
-        local iconOverlay = cooldownDropOverlay:CreateTexture(nil, "OVERLAY")
-        iconOverlay:SetSize(34, 34)
-        iconOverlay:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
-        iconOverlay:Hide()
-        cooldownDropOverlay.iconOverlay = iconOverlay
-        
-        -- Main text
-        local mainText = cooldownDropOverlay:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        mainText:SetPoint("LEFT", iconBg, "RIGHT", 15, 8)
-        mainText:SetJustifyH("LEFT")
-        mainText:SetText("|cFF4A9EFF[ Drag Spell Here ]|r")
-        cooldownDropOverlay.mainText = mainText
-        
-        -- Subtext
-        local subText = cooldownDropOverlay:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        subText:SetPoint("TOPLEFT", mainText, "BOTTOMLEFT", 0, -3)
-        subText:SetJustifyH("LEFT")
-        subText:SetText("|cFF888888Drag from spellbook or action bar|r")
-        
-        -- Hover highlight
-        local highlight = cooldownDropOverlay:CreateTexture(nil, "HIGHLIGHT")
-        highlight:SetAllPoints()
-        highlight:SetColorTexture(accent.r, accent.g, accent.b, 0.15)
-		
-        
-        -- Drag handlers
-        cooldownDropOverlay:SetScript("OnReceiveDrag", function(self)
-            local cursorType, id, subType = GetCursorInfo()
-            
-            if cursorType == "spell" then
-                -- Resolve spell ID based on drag source
-                local spellID = nil
-                if subType == "spell" or subType == "pet" then
-                    -- Spellbook drag: resolve slot index to spell ID
-                    if C_SpellBook and C_SpellBook.GetSpellBookItemInfo then
-                        local bookType = (subType == "pet") and Enum.SpellBookSpellBank.Pet 
-                                                              or Enum.SpellBookSpellBank.Player
-                        local spellInfo = C_SpellBook.GetSpellBookItemInfo(id, bookType)
-                        if spellInfo and spellInfo.spellID then
-                            spellID = spellInfo.spellID
-                        end
-                    end
-                else
-                    -- Action bar drag: id is already spell ID
-                    spellID = id
-                end
-                
-                if spellID and spellID > 0 then
-                    -- Add to tracking
-                    if not KSBT.db.profile.cooldowns.tracked[spellID] then
-                        KSBT.db.profile.cooldowns.tracked[spellID] = true
-                        
-                        -- Get spell info
-                        local name, icon
-                        if C_Spell and C_Spell.GetSpellInfo then
-                            local info = C_Spell.GetSpellInfo(spellID)
-                            if info then
-                                name = info.name
-                                icon = info.iconID
-                            end
-                        end
-                        
-                        -- Visual feedback
-                        if icon and self.iconOverlay then
-                            self.iconOverlay:SetTexture(icon)
-                            self.iconOverlay:Show()
-                        end
-                        if self.mainText then
-                            self.mainText:SetText("|cFF00FF00Added!|r")
-                        end
-                        
-                        -- Reset after 2 seconds
-                        C_Timer.After(2.0, function()
-                            if self.mainText then
-                                self.mainText:SetText("|cFF4A9EFF[ Drag Spell Here ]|r")
-                            end
-                            if self.iconOverlay then
-                                self.iconOverlay:Hide()
-                            end
-                        end)
-                        
-                        local displayName = name and (name .. " (ID: " .. spellID .. ")") or ("Spell ID: " .. spellID)
-                        KSBT.Addon:Print("Now tracking: " .. displayName)
-                        
-                        -- Refresh UI
-                        LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
-                    else
-                        KSBT.Addon:Print("Spell ID " .. spellID .. " is already being tracked.")
-                    end
-                else
-                    KSBT.Addon:Print("Could not resolve spell ID. Try dragging from action bar.")
-                end
-                ClearCursor()
-            elseif cursorType == "petaction" then
-                ClearCursor()
-                KSBT.Addon:Print("Pet abilities cannot be tracked.")
-            elseif cursorType == "item" then
-                -- Item drag: store as string key to avoid ID collisions with spells
-                local itemID = id
-                if itemID and itemID > 0 then
-                    local key = "item:" .. itemID
-                    if not KSBT.db.profile.cooldowns.tracked[key] then
-                        KSBT.db.profile.cooldowns.tracked[key] = true
 
-                        -- Get item info (may be nil if not cached yet)
-                        local name, icon
-                        if C_Item and C_Item.GetItemInfo then
-                            name, _, _, _, _, _, _, _, _, icon = C_Item.GetItemInfo(itemID)
-                        end
+    -- Fallback: if we can't find the specific widget frame, skip —
+    -- better to do nothing than to hook the wrong frame.
+    if not targetFrame then return end
+    if dragTargetFrame == targetFrame and dragHookInstalled then return end
 
-                        -- Visual feedback
-                        if icon and self.iconOverlay then
-                            self.iconOverlay:SetTexture(icon)
-                            self.iconOverlay:Show()
-                        end
-                        if self.mainText then
-                            self.mainText:SetText("|cFF00FF00Added!|r")
-                        end
+    dragTargetFrame   = targetFrame
+    dragHookInstalled = true
 
-                        -- Reset after 2 seconds
-                        C_Timer.After(2.0, function()
-                            if self.mainText then
-                                self.mainText:SetText("|cFF4A9EFF[ Drag Spell Here ]|r")
-                            end
-                            if self.iconOverlay then
-                                self.iconOverlay:Hide()
-                            end
-                        end)
+    targetFrame:EnableMouse(true)
+    targetFrame:RegisterForDrag("LeftButton")
 
-                        local displayName = name and (name .. " (Item ID: " .. itemID .. ")") or ("Item ID: " .. itemID)
-                        KSBT.Addon:Print("Now tracking: " .. displayName)
+    targetFrame:SetScript("OnReceiveDrag", function()
+        local t, id, sub = GetCursorInfo()
+        HandleSpellDrop(t, id, sub)
+    end)
 
-                        -- Refresh UI
-                        LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
-                    else
-                        KSBT.Addon:Print("Item ID " .. itemID .. " is already being tracked.")
-                    end
-                end
-                ClearCursor()
-            else
-                ClearCursor()
-            end
-        end)
-        
-        cooldownDropOverlay:SetScript("OnMouseUp", function(self, button)
-            if button == "LeftButton" then
-                local cursorType, id = GetCursorInfo()
-                if (cursorType == "spell" or cursorType == "item") and id and id > 0 then
-                    -- Trigger the same logic as OnReceiveDrag
-                    self:GetScript("OnReceiveDrag")(self)
-                end
-            end
-        end)
+    targetFrame:SetScript("OnMouseUp", function(_, btn)
+        if btn == "LeftButton" then
+            local t, id, sub = GetCursorInfo()
+            if t then HandleSpellDrop(t, id, sub) end
+        end
+    end)
+
+    -- Hover highlight on the label frame
+    if not targetFrame.ksbtBg then
+        local accent = KSBT.COLORS and KSBT.COLORS.ACCENT or {r=0.29,g=0.62,b=1.0}
+        local hl = targetFrame:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(accent.r, accent.g, accent.b, 0.15)
+        targetFrame.ksbtBg = hl
     end
-
-    -- Expose a stable reference for tab switching control
-    KSBT.UI.CooldownDropOverlay = cooldownDropOverlay
-    
-    -- Position the overlay: Should appear below "Tracked Spells" header
-    -- Approximate Y offset from top of content area
-    cooldownDropOverlay:ClearAllPoints()
-    cooldownDropOverlay:SetPoint("TOP", contentFrame, "TOP", 0, -180)
-	
-    
-    -- Default to hidden; tab hook (or this function) will show only on "cooldowns".
-    KSBT.SetCooldownOverlayVisible(false)
-
-    local selected = tabGroup and tabGroup.status and tabGroup.status.selected
-    KSBT.SetCooldownOverlayVisible(selected == "cooldowns")
 end
 
-function KSBT.HideCooldownDropOverlay()
-    if cooldownDropOverlay then
-        cooldownDropOverlay:Hide()
-    end
+-- Called from the Hide hook to reset state so next open re-hooks cleanly
+function KSBT.ResetDragDropInline()
+    dragHookInstalled = false
+    dragTargetFrame   = nil
 end
