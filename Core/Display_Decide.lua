@@ -29,7 +29,7 @@ end
 -- Primary contract: engine calls this to request output.
 function Display:Emit(areaName, text, color, meta)
     -- Global gating (Enable KSBT + Combat Only Mode)
-    if KSBT.Core and KSBT.Core.ShouldEmitNow and not KSBT.Core:ShouldEmitNow() then
+    if KSBT.Core and KSBT.Core.ShouldEmitNow and not KSBT.Core:ShouldEmitNow(meta) then
         return
     end
 

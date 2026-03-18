@@ -62,10 +62,16 @@ function Core:IsCombatOnlyEnabled()
        and KSBT.db.profile.general.combatOnly == true
 end
 
-function Core:ShouldEmitNow()
+function Core:ShouldEmitNow(meta)
     if not self:IsMasterEnabled() then return false end
     if self:IsCombatOnlyEnabled() and not UnitAffectingCombat("player") then
-        return false
+        -- Allow combat events through even if UnitAffectingCombat hasn't
+        -- caught up yet.  The first hit that starts combat arrives before
+        -- PLAYER_REGEN_DISABLED, so the API still returns false.  Probe
+        -- events are inherently combat actions — let them pass.
+        if not (meta and meta.probe) then
+            return false
+        end
     end
     return true
 end
