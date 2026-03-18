@@ -41,8 +41,12 @@ local _DUMMY_REACTION_NEUTRAL = COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000020
 
 local function IsDummyTarget(destFlags)
     if not destFlags then return false end
-    return band(destFlags, _DUMMY_TYPE_NPC) ~= 0
-       and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+    -- destFlags can be a secret number in boss encounters; pcall protects band()
+    local ok, result = pcall(function()
+        return band(destFlags, _DUMMY_TYPE_NPC) ~= 0
+           and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+    end)
+    return ok and result or false
 end
 
 -- In restricted content (M+, raids) CLEU amounts are "secret numbers":
