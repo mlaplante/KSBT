@@ -106,7 +106,7 @@ function Core:ApplyBlizzardFCTCVars()
         end
     end
 
-    -- These are the historical CVars. If Blizzard changes them again, we’ll adapt.
+    -- These are the historical CVars. If Blizzard changes them again, we'll adapt.
     if g.suppressBlizzardDamage then
         trySet("floatingCombatTextCombatDamage", "0")
     else
