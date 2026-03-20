@@ -181,13 +181,14 @@ local function HandleCLEU()
         local isPeriodic = (subevent == "SPELL_PERIODIC_DAMAGE")
 
         if isOutgoing then
+            local isCrit = IsCrit(critical)
             EmitOutgoing({
                 ts         = now,
                 kind       = "damage",
                 amount     = amount,
                 isSecret   = secret,
                 isAuto     = false,
-                isCrit     = IsCrit(critical),
+                isCrit     = isCrit,
                 isPeriodic = isPeriodic,
                 spellId    = spellId,
                 spellName  = spellName or SpellNameForId(spellId),
@@ -195,6 +196,28 @@ local function HandleCLEU()
                 destFlags  = destFlags,
                 targetName = destName,
             })
+
+                -- Record observation for spell learning
+                if KSBT.SpellFingerprints then
+                    local castDelay
+                    local castEntry = KSBT.CastHistory:FindMostRecentCast(spellId, now)
+                    if castEntry then
+                        castDelay = now - castEntry.timestamp
+                    end
+                    KSBT.SpellFingerprints:RecordObservation(
+                        spellId, spellName, amount, isCrit, isPeriodic, spellSchool or school or 1, castDelay)
+
+                    -- Debug log (level 2)
+                    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+                        KSBT.DebugLog:Add(2, "green",
+                            string.format("Learned: %s #%d — %s%s [sample #%d]",
+                                spellName or "?", spellId,
+                                tostring(amount),
+                                isCrit and " (crit)" or "",
+                                KSBT.SpellFingerprints:Get(spellId)
+                                    and KSBT.SpellFingerprints:Get(spellId).sampleCount or 1))
+                    end
+                end
         end
         if isIncoming then
             EmitIncoming({
