@@ -6,7 +6,6 @@ local ADDON_NAME, KSBT = ...
 local GetTime     = GetTime
 local C_Spell     = C_Spell
 local pcall       = pcall
-local band        = bit.band
 
 -- ── Module ──────────────────────────────────────────────────
 local CastHistory = {}

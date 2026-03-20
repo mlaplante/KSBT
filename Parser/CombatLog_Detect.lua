@@ -365,8 +365,8 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
             targetName = nil,
         }
 
-        -- Attempt spell attribution via learning system
-        if not evt.spellId then
+        -- Attempt spell attribution via learning system (damage only, not heals)
+        if not evt.spellId and evt.kind == "damage" then
             local matchId, matchName, confidence = KSBT.SpellMatcher:Match(
                 evt.amount, evt.schoolMask, evt.isCrit, evt.isPeriodic, now)
             if matchId then
