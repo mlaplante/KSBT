@@ -8,7 +8,7 @@ local ADDON_NAME, KSBT = ...
 ------------------------------------------------------------------------
 -- Version & Identity
 ------------------------------------------------------------------------
-KSBT.VERSION = "1.2.0"
+KSBT.VERSION = "2.0.0"
 KSBT.ADDON_TITLE = "Kroth's Scrolling Battle Text"
 KSBT.SLASH_PRIMARY = "/ksbt"
 KSBT.SLASH_SECONDARY = "/krothsbt"
@@ -57,8 +57,8 @@ KSBT.FONT_SIZE_MAX = 32
 KSBT.ALPHA_MIN     = 0
 KSBT.ALPHA_MAX     = 1
 
-KSBT.SCROLL_OFFSET_MIN  = -500
-KSBT.SCROLL_OFFSET_MAX  = 500
+KSBT.SCROLL_OFFSET_MIN  = -50   -- percent of screen width/height from center
+KSBT.SCROLL_OFFSET_MAX  = 50
 KSBT.SCROLL_WIDTH_MIN   = 100
 KSBT.SCROLL_WIDTH_MAX   = 800
 KSBT.SCROLL_HEIGHT_MIN  = 100
@@ -66,6 +66,11 @@ KSBT.SCROLL_HEIGHT_MAX  = 600
 
 KSBT.MERGE_WINDOW_MIN = 0.5
 KSBT.MERGE_WINDOW_MAX = 5.0
+
+KSBT.POST_MERGE_THRESHOLD_MIN = 0
+KSBT.POST_MERGE_THRESHOLD_MAX = 100000
+KSBT.POST_MERGE_THRESHOLD_SOFT_MAX = 50000
+KSBT.POST_MERGE_THRESHOLD_STEP = 500
 
 ------------------------------------------------------------------------
 -- Damage School Indices (matches WoW API school masks)

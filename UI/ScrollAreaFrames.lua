@@ -9,6 +9,19 @@ local ADDON_NAME, KSBT = ...
 local Addon = KSBT.Addon
 
 ------------------------------------------------------------------------
+-- Percentage ↔ pixel helpers (offsets stored as % of screen size)
+------------------------------------------------------------------------
+local function PctToPixels(xPct, yPct)
+    return (xPct / 100) * UIParent:GetWidth(),
+           (yPct / 100) * UIParent:GetHeight()
+end
+
+local function PixelsToPct(xPx, yPx)
+    return (xPx / UIParent:GetWidth()) * 100,
+           (yPx / UIParent:GetHeight()) * 100
+end
+
+------------------------------------------------------------------------
 -- Constants for visualization frames
 ------------------------------------------------------------------------
 
@@ -134,8 +147,9 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     -- Create the frame anchored to screen center (UIParent CENTER)
     local frame = CreateFrame("Frame", "KSBT_AreaViz_" .. areaName, UIParent,
         "BackdropTemplate")
+    local pxX, pxY = PctToPixels(areaData.xOffset, areaData.yOffset)
     frame:SetSize(areaData.width, areaData.height)
-    frame:SetPoint("CENTER", UIParent, "CENTER", areaData.xOffset, areaData.yOffset)
+    frame:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
     -- Keep frames above the config window while unlocked (new areas must be visible immediately)
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetFrameLevel(1000)
@@ -160,7 +174,7 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     local offsetLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     offsetLabel:SetPoint("TOP", label, "BOTTOM", 0, -4)
     offsetLabel:SetTextColor(0.8, 0.8, 0.8, 0.8)
-    offsetLabel:SetText(string.format("X: %d  Y: %d", areaData.xOffset, areaData.yOffset))
+    offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%", areaData.xOffset, areaData.yOffset))
     frame.offsetLabel = offsetLabel
 
     -- Make the frame draggable
@@ -178,36 +192,40 @@ local function CreateAreaFrame(areaName, areaData, colorIdx)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
 
-        -- Calculate new offset from UIParent CENTER
+        -- Calculate new offset from UIParent CENTER, convert to percentage
         local centerX = UIParent:GetWidth() / 2
         local centerY = UIParent:GetHeight() / 2
         local frameX = self:GetLeft() + (self:GetWidth() / 2)
         local frameY = self:GetBottom() + (self:GetHeight() / 2)
 
-        local newXOffset = math.floor(frameX - centerX + 0.5)
-        local newYOffset = math.floor(frameY - centerY + 0.5)
+        local newXPct, newYPct = PixelsToPct(frameX - centerX, frameY - centerY)
 
-        -- Clamp to slider range
-        newXOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
-                     math.min(KSBT.SCROLL_OFFSET_MAX, newXOffset))
-        newYOffset = math.max(KSBT.SCROLL_OFFSET_MIN,
-                     math.min(KSBT.SCROLL_OFFSET_MAX, newYOffset))
+        -- Round to 1 decimal place for clean saved values
+        newXPct = math.floor(newXPct * 10 + 0.5) / 10
+        newYPct = math.floor(newYPct * 10 + 0.5) / 10
+
+        -- Clamp to slider range (percentage)
+        newXPct = math.max(KSBT.SCROLL_OFFSET_MIN,
+                  math.min(KSBT.SCROLL_OFFSET_MAX, newXPct))
+        newYPct = math.max(KSBT.SCROLL_OFFSET_MIN,
+                  math.min(KSBT.SCROLL_OFFSET_MAX, newYPct))
 
         -- Update the saved profile data
         local area = KSBT.db.profile.scrollAreas[self.areaName]
         if area then
-            area.xOffset = newXOffset
-            area.yOffset = newYOffset
+            area.xOffset = newXPct
+            area.yOffset = newYPct
         end
 
         -- Snap the frame to the clamped position (in case we clamped)
+        local pxX, pxY = PctToPixels(newXPct, newYPct)
         self:ClearAllPoints()
-        self:SetPoint("CENTER", UIParent, "CENTER", newXOffset, newYOffset)
+        self:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
 
         -- Update the offset readout label immediately
         if self.offsetLabel then
-            self.offsetLabel:SetText(string.format("X: %d  Y: %d",
-                newXOffset, newYOffset))
+            self.offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%",
+                newXPct, newYPct))
         end
 
         -- If a parent frame exists for this area, it will be repositioned on next FireTestText call.
@@ -304,14 +322,15 @@ function KSBT.UpdateScrollAreaFrames()
         if areaData then
             -- Update size
             frame:SetSize(areaData.width, areaData.height)
-            
-            -- Update position
+
+            -- Update position (convert percentage to pixels)
+            local pxX, pxY = PctToPixels(areaData.xOffset, areaData.yOffset)
             frame:ClearAllPoints()
-            frame:SetPoint("CENTER", UIParent, "CENTER", areaData.xOffset, areaData.yOffset)
-            
+            frame:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
+
             -- Update offset label
             if frame.offsetLabel then
-                frame.offsetLabel:SetText(string.format("X: %d  Y: %d",
+                frame.offsetLabel:SetText(string.format("X: %.0f%%  Y: %.0f%%",
                     areaData.xOffset, areaData.yOffset))
             end
         end
@@ -402,11 +421,18 @@ function KSBT.TestScrollArea(areaName)
         "Heal +842",
     }
 
+    -- Mark third event as crit for preview
+    local mockCrits = { false, false, true }
     for i, text in ipairs(mockEvents) do
-        -- Use C_Timer.After for staggered firing (0.0, 0.3, 0.6 seconds)
+        local crit = mockCrits[i] or false
+        local mockText = crit and (text .. "!") or text
+        local mockColor = nil  -- uses ACCENT default
+        if crit then
+            mockColor = {r = 1.00, g = 0.65, b = 0.00}  -- crit gold
+        end
         C_Timer.After((i - 1) * 0.3, function()
-            KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                              fontAlpha, anchorH, dirMult, duration)
+            KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize, outlineFlag,
+                              fontAlpha, anchorH, dirMult, duration, mockColor, crit)
         end)
     end
 end
@@ -453,13 +479,20 @@ local function FireAllAreasOnce()
             local baseDuration = 2.0
             local duration = baseDuration / (area.animSpeed or 1.0)
 
-            -- Fire 3 mock events with stagger
+            -- Fire 3 mock events with stagger; third is a crit for preview
+            local mockCrits = { false, false, true }
             for i = 1, 3 do
                 local mockEvent = mockEvents[((i - 1) % #mockEvents) + 1]
-                
+                local crit = mockCrits[i] or false
+                local mockText = crit and (mockEvent.text .. "!") or mockEvent.text
+                local mockColor = nil
+                if crit then
+                    mockColor = {r = 1.00, g = 0.65, b = 0.00}
+                end
+
                 C_Timer.After((i - 1) * 0.3, function()
-                    KSBT.FireTestText(areaName, mockEvent.text, area, fontFace, fontSize,
-                                      outlineFlag, fontAlpha, anchorH, dirMult, duration)
+                    KSBT.FireTestText(areaName, mockText, area, fontFace, fontSize,
+                                      outlineFlag, fontAlpha, anchorH, dirMult, duration, mockColor, crit)
                 end)
             end
         end
@@ -558,8 +591,9 @@ end
 ------------------------------------------------------------------------
 -- @param color        (table|nil) Optional {r,g,b,a} text color. If nil,
 --                      uses KSBT.COLORS.ACCENT.
+-- @param isCrit       (boolean) If true, doubles duration and adds decaying shake.
 function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag,
-                           fontAlpha, anchorH, dirMult, duration, color)
+                           fontAlpha, anchorH, dirMult, duration, color, isCrit)
     -- Create a unique parent frame for this scroll area based on its position
     -- This allows multiple areas to be tested simultaneously without interference
     local parentKey = areaName
@@ -575,10 +609,11 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
         KSBT._testParentFrames[parentKey] = parent
     end
     
-    -- Position and size the parent for this area
+    -- Position and size the parent for this area (convert percentage to pixels)
+    local pxX, pxY = PctToPixels(area.xOffset, area.yOffset)
     parent:ClearAllPoints()
     parent:SetSize(area.width, area.height)
-    parent:SetPoint("CENTER", UIParent, "CENTER", area.xOffset, area.yOffset)
+    parent:SetPoint("CENTER", UIParent, "CENTER", pxX, pxY)
     parent:Show()
 
     -- Acquire a pooled FontString (or create one if pool is empty)
@@ -616,6 +651,11 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
     -- Animation: scroll the text across the area height over `duration` seconds
     local totalDistance = area.height
     local elapsed = 0
+
+    -- Critical hits linger 2x longer
+    if isCrit then
+        duration = duration * 2
+    end
 
     -- Use OnUpdate for animation
     local animFrame = AcquireAnimFrame()
@@ -660,9 +700,15 @@ function KSBT.FireTestText(areaName, text, area, fontFace, fontSize, outlineFlag
             yOffset = 0
         end
 
+        -- Crit shake: decaying horizontal sine oscillation
+        local shakeX = 0
+        if isCrit then
+            shakeX = math.sin(elapsed * 25) * 3 * (1 - progress)
+        end
+
         -- Apply position offset from starting point
         fs:ClearAllPoints()
-        fs:SetPoint(startPoint, parent, startPoint, xOffset, yOffset)
+        fs:SetPoint(startPoint, parent, startPoint, xOffset + shakeX, yOffset)
 
         -- Alpha fade
         local alpha = fontAlpha

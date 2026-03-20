@@ -41,8 +41,12 @@ local _DUMMY_REACTION_NEUTRAL = COMBATLOG_OBJECT_REACTION_NEUTRAL or 0x00000020
 
 local function IsDummyTarget(destFlags)
     if not destFlags then return false end
-    return band(destFlags, _DUMMY_TYPE_NPC) ~= 0
-       and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+    -- destFlags can be a secret number in boss encounters; pcall protects band()
+    local ok, result = pcall(function()
+        return band(destFlags, _DUMMY_TYPE_NPC) ~= 0
+           and band(destFlags, _DUMMY_REACTION_NEUTRAL) ~= 0
+    end)
+    return ok and result or false
 end
 
 -- In restricted content (M+, raids) CLEU amounts are "secret numbers":
@@ -58,6 +62,108 @@ local function ReadAmount(raw)
     return 0, false
 end
 
+-- Spell filter: per-character whitelist/blacklist with auto-discovery.
+-- Returns: "auto" (use thresholds), "show" (whitelist), "hide" (blacklist), or nil (no spellId)
+function KSBT.GetSpellFilterMode(spellId, spellName, kind)
+    if not spellId or spellId == 0 then return nil end
+    local charDb = KSBT.db and KSBT.db.char
+    if not charDb or not charDb.spellFilters then return nil end
+
+    local key = tostring(spellId)
+    local entry = charDb.spellFilters[key]
+    if not entry then
+        -- First time seeing this spell — auto-discover
+        local name = spellName
+        if (not name or name == "") and C_Spell and C_Spell.GetSpellInfo then
+            local info = C_Spell.GetSpellInfo(spellId)
+            name = info and info.name
+        end
+        charDb.spellFilters[key] = {
+            mode = "auto",
+            name = name or ("Unknown (" .. key .. ")"),
+            kind = kind or "damage",
+        }
+        return "auto"
+    end
+
+    -- Update name/kind if they were missing
+    if spellName and spellName ~= "" and (not entry.name or entry.name:match("^Unknown")) then
+        entry.name = spellName
+    end
+    if kind and not entry.kind then
+        entry.kind = kind
+    end
+
+    return entry.mode or "auto"
+end
+
+------------------------------------------------------------------------
+-- Percentile-based font scaling (session-only, not persisted)
+------------------------------------------------------------------------
+local _spellHistory = {}     -- Key: spellId (number), Value: sorted array of amounts
+local MAX_HISTORY = 200      -- max samples per spell
+local MIN_SAMPLES = 20       -- minimum before scaling activates
+
+-- Insert a value into a sorted array, maintaining sort order.
+-- If array exceeds MAX_HISTORY, evict the median to preserve tail shape.
+local function RecordSpellAmount(spellId, amount)
+    if not spellId or spellId == 0 or not amount or amount <= 0 then return end
+
+    local hist = _spellHistory[spellId]
+    if not hist then
+        hist = {}
+        _spellHistory[spellId] = hist
+    end
+
+    -- Binary search for insert position
+    local lo, hi = 1, #hist
+    while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        if hist[mid] < amount then
+            lo = mid + 1
+        else
+            hi = mid - 1
+        end
+    end
+    table.insert(hist, lo, amount)
+
+    -- Evict median if over capacity (preserves both tails)
+    if #hist > MAX_HISTORY then
+        local median = math.floor(#hist / 2)
+        table.remove(hist, median)
+    end
+end
+
+-- Returns a font scale factor (1.0 to maxScale) based on percentile position.
+-- Returns 1.0 if not enough samples or amount is below threshold.
+local function GetPercentileScale(spellId, amount)
+    if not spellId or spellId == 0 or not amount or amount <= 0 then return 1.0 end
+
+    local charDb = KSBT.db and KSBT.db.char
+    local conf = charDb and charDb.spamControl and charDb.spamControl.percentileScaling
+    if not conf or not conf.enabled then return 1.0 end
+
+    local hist = _spellHistory[spellId]
+    if not hist or #hist < MIN_SAMPLES then return 1.0 end
+
+    local pct = (tonumber(conf.percentile) or 95) / 100
+    local maxScale = tonumber(conf.maxScale) or 1.5
+    if maxScale <= 1.0 then return 1.0 end
+
+    local thresholdIdx = math.floor(#hist * pct)
+    if thresholdIdx < 1 then thresholdIdx = 1 end
+    local threshold = hist[thresholdIdx]
+    local maxVal = hist[#hist]
+
+    if amount < threshold then return 1.0 end
+    if maxVal <= threshold then return maxScale end
+
+    -- Lerp between 1.0 and maxScale based on position between threshold and max
+    local t = (amount - threshold) / (maxVal - threshold)
+    if t > 1.0 then t = 1.0 end
+    return 1.0 + t * (maxScale - 1.0)
+end
+
 local function MergeKey(kind, spellId, area)
     return tostring(kind) .. "_" .. tostring(spellId or "0") .. "_" .. tostring(area)
 end
@@ -67,53 +173,146 @@ local function FlushMerge(key)
     if not entry then return end
     _mergeState[key] = nil
 
-    local text = entry.text
+    if entry.timer then entry.timer:Cancel() end
+
     local db = KSBT.db and KSBT.db.profile
-    local showCount = db and db.spamControl and db.spamControl.merging
-                      and db.spamControl.merging.showCount
+    local charDb = KSBT.db and KSBT.db.char
+
+    -- Post-merge threshold check (skip for secret values and whitelisted spells)
+    local isWhitelisted = entry.meta and entry.meta.whitelisted
+    if not entry.isSecret and not isWhitelisted then
+        local throttle = charDb and charDb.spamControl and charDb.spamControl.throttling
+        if throttle then
+            local postMin
+            if entry.kind == "damage" then
+                postMin = tonumber(throttle.postMergeDamage) or 0
+            else
+                postMin = tonumber(throttle.postMergeHealing) or 0
+            end
+            if postMin > 0 and entry.count > 1 and entry.totalAmount < postMin then
+                return  -- merged total below post-merge threshold; discard
+            end
+        end
+    end
+
+    -- Compose display text from accumulated data
+    local text
+    if entry.isSecret then
+        text = entry.secretText or "?"
+    else
+        text = KSBT.FormatNumber and KSBT.FormatNumber(entry.totalAmount) or tostring(math.floor(entry.totalAmount + 0.5))
+    end
+
+    -- Spell name (from first tick's meta)
+    local prof = db and db.outgoing
+    if prof and prof.showSpellNames and entry.meta and entry.meta.spellName
+    and entry.meta.spellName ~= "" and not entry.meta.isAuto then
+        text = text .. " " .. entry.meta.spellName
+    end
+
+    -- Target name (damage only)
+    if entry.kind == "damage" and prof and prof.damage and prof.damage.showTargets
+    and entry.meta and entry.meta.targetName and entry.meta.targetName ~= "" then
+        text = text .. " -> " .. entry.meta.targetName
+    end
+
+    -- Overheal display (healing only)
+    if entry.kind == "heal" and not entry.isSecret then
+        local healConf = prof and prof.healing
+        if healConf and healConf.showOverheal and (entry.totalOverheal or 0) > 0 then
+            text = text .. " (OH " .. tostring(math.floor(entry.totalOverheal + 0.5)) .. ")"
+        end
+    end
+
+    -- Crit marker: if any tick in the group was a crit, promote the merged display
+    local color = entry.color
+    -- Shallow-copy meta to avoid mutating the original reference
+    local meta = {}
+    for k, v in pairs(entry.meta or {}) do meta[k] = v end
+    if entry.hasCrit then
+        text = text .. "!"
+        meta.isCrit = true
+        if entry.kind == "damage" then
+            color = {r = 1.00, g = 0.65, b = 0.00}
+        else
+            color = {r = 0.40, g = 1.00, b = 0.80}
+        end
+    end
+
+    -- Merge count suffix
+    local showCount = charDb and charDb.spamControl and charDb.spamControl.merging
+                      and charDb.spamControl.merging.showCount
     if entry.count > 1 and showCount then
         text = text .. " x" .. entry.count
     end
 
+    -- Percentile-based font scaling
+    if not entry.isSecret and entry.spellId then
+        local scale = GetPercentileScale(entry.spellId, entry.totalAmount)
+        if scale > 1.0 then
+            meta.fontScale = scale
+        end
+        -- Record merged total for future percentile checks
+        RecordSpellAmount(entry.spellId, entry.totalAmount)
+    end
+
     if KSBT.DisplayText then
-        KSBT.DisplayText(entry.area, text, entry.color, entry.meta)
+        KSBT.DisplayText(entry.area, text, color, meta)
     elseif KSBT.Core and KSBT.Core.Display and KSBT.Core.Display.Emit then
-        KSBT.Core.Display:Emit(entry.area, text, entry.color, entry.meta)
+        KSBT.Core.Display:Emit(entry.area, text, color, meta)
     end
 end
 
 -- Emit an event, merging with previous if spam control is active.
--- baseText: the raw number string used as merge identity key (no "!" or spell name)
--- text: the fully composed display string
-local function EmitOrMerge(kind, spellId, area, baseText, text, color, meta, isReplay)
+-- amount: numeric value for accumulation (nil/0 for secret values)
+-- baseText: the raw number string (used for non-merged direct emit)
+-- text: the fully composed display string (used for non-merged direct emit)
+-- isSecret: true if amount is a WoW secret number (skip arithmetic)
+local function EmitOrMerge(kind, spellId, area, amount, baseText, text, color, meta, isReplay, isSecret)
     local db = KSBT.db and KSBT.db.profile
-    local mergeEnabled = db and db.spamControl and db.spamControl.merging
-                         and db.spamControl.merging.enabled
-    local mergeWindow  = (db and db.spamControl and db.spamControl.merging
-                         and db.spamControl.merging.window) or 1.5
+    local charDb = KSBT.db and KSBT.db.char
+    local mergeEnabled = charDb and charDb.spamControl and charDb.spamControl.merging
+                         and charDb.spamControl.merging.enabled
+    local mergeWindow  = (charDb and charDb.spamControl and charDb.spamControl.merging
+                         and charDb.spamControl.merging.window) or 1.5
 
-    if mergeEnabled and not isReplay then
+    if mergeEnabled and not isReplay and not (meta and meta.noMerge) then
         local mkey = MergeKey(kind, spellId, area)
         local existing = _mergeState[mkey]
 
-        if existing and existing.baseText == baseText then
-            -- Same spell, same amount — merge
+        if existing then
+            -- Same spell in same area — accumulate
             existing.count = existing.count + 1
+            if not isSecret and not existing.isSecret then
+                existing.totalAmount = existing.totalAmount + (amount or 0)
+                existing.totalOverheal = (existing.totalOverheal or 0) + (meta.overhealAmount or 0)
+            else
+                existing.isSecret = true
+            end
+            if meta.isCrit then existing.hasCrit = true end
+            if meta.whitelisted then
+                existing.meta = existing.meta or {}
+                existing.meta.whitelisted = true
+            end
             if existing.timer then existing.timer:Cancel() end
             existing.timer = C_Timer.NewTimer(mergeWindow, function()
                 FlushMerge(mkey)
             end)
         else
-            -- Different or first occurrence — flush old, start new
-            if existing then FlushMerge(mkey) end
+            -- First occurrence — start new entry
             _mergeState[mkey] = {
-                baseText = baseText,
-                text     = text,
-                area     = area,
-                color    = color,
-                meta     = meta,
-                count    = 1,
-                timer    = C_Timer.NewTimer(mergeWindow, function()
+                kind         = kind,
+                spellId      = spellId,
+                area         = area,
+                totalAmount  = amount or 0,
+                totalOverheal = meta.overhealAmount or 0,
+                count        = 1,
+                color        = color,
+                meta         = meta,
+                isSecret     = isSecret == true,
+                hasCrit      = meta.isCrit == true,
+                secretText   = isSecret and baseText or nil,
+                timer        = C_Timer.NewTimer(mergeWindow, function()
                     FlushMerge(mkey)
                 end),
             }
@@ -286,15 +485,6 @@ end
 function Probe:OnOutgoingDetected(evt)
     if not evt or type(evt) ~= "table" then return end
 
-    -- Debug logging
-    local db = KSBT.db and KSBT.db.profile
-    local lvl = db and db.diagnostics and db.diagnostics.debugLevel or 0
-    if lvl >= 1 then
-        print("|cff00ff00KSBT-Probe|r OnOutgoingDetected: kind=" .. tostring(evt.kind)
-            .. " amount=" .. tostring(evt.amount)
-            .. " spell=" .. tostring(evt.spellName))
-    end
-
     -- Record into ring buffer only during an active capture session.
     if self._capturing then
         PushEvent(evt)
@@ -324,17 +514,26 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if mode == "Show Only Crits" and evt.isCrit ~= true then return end
         end
 
+        -- Spell filter check (per-character overrides)
+        local spellFilterMode = KSBT.GetSpellFilterMode(evt.spellId, evt.spellName, "damage")
+        if spellFilterMode == "hide" then return end
+
         local amt, isSecret = ReadAmount(evt.amount)
         if evt.isSecret then isSecret = true end
 
+        -- Record for percentile tracking (before filtering, all hits count)
+        if not isSecret and evt.spellId then
+            RecordSpellAmount(evt.spellId, amt)
+        end
+
         -- When readable: apply min-threshold and spam controls.
-        if not isSecret then
+        if not isSecret and spellFilterMode ~= "show" and spellFilterMode ~= "show_nomerge" then
             if amt <= 0 then return end
 
             local minT = tonumber(conf.minThreshold) or 0
             if amt < minT then return end
 
-            local spamConf = KSBT.db.profile.spamControl
+            local spamConf = KSBT.db.char.spamControl
             local throttle = spamConf and spamConf.throttling
             if throttle then
                 local globalMin = tonumber(throttle.minDamage) or 0
@@ -347,11 +546,14 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             if spamConf and spamConf.suppressDummyDamage then
                 if IsDummyTarget(evt.destFlags) then return end
             end
+        elseif not isSecret then
+            -- Whitelisted: still need amt > 0 check
+            if amt <= 0 then return end
         end
 
         -- Build display text.
         -- Secret amounts: tostring() works via Blizzard metamethod; skip spell/target append.
-        local baseText = isSecret and tostring(evt.amount) or tostring(math.floor(amt + 0.5))
+        local baseText = isSecret and tostring(evt.amount) or (KSBT.FormatNumber and KSBT.FormatNumber(amt) or tostring(math.floor(amt + 0.5)))
         local text = baseText
 
         if not isSecret and prof.showSpellNames and evt.isAuto ~= true
@@ -371,7 +573,17 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             isAuto = evt.isAuto == true,
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
+            spellId = evt.spellId,
+            spellName = evt.spellName,
+            targetName = evt.targetName,
+            whitelisted = (spellFilterMode == "show" or spellFilterMode == "show_nomerge"),
         }
+
+        -- Per-spell merge control
+        if spellFilterMode == "auto_nomerge" or spellFilterMode == "show_nomerge" then
+            meta.noMerge = true
+        end
+
         local color
         if meta.isCrit then
             color = {r = 1.00, g = 0.65, b = 0.00}
@@ -388,19 +600,41 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             end
         end
 
-        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
+        -- Percentile font scaling for direct (non-merged) emit
+        if not isSecret and evt.spellId then
+            local scale = GetPercentileScale(evt.spellId, amt)
+            if scale > 1.0 then
+                meta.fontScale = scale
+            end
+        end
+
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", amt, baseText, text, color, meta, isReplay, isSecret)
 
     else  -- heal
         local conf = prof.healing
         if not conf or not conf.enabled then return end
 
+        -- Spell filter check (per-character overrides)
+        local spellFilterMode = KSBT.GetSpellFilterMode(evt.spellId, evt.spellName, "heal")
+        if spellFilterMode == "hide" then return end
+
         local amt, isSecret   = ReadAmount(evt.amount)
         local over, overSecret = ReadAmount(evt.overheal)
         if evt.isSecret then isSecret = true; overSecret = true end
 
+        -- Record for percentile tracking BEFORE filtering (all hits count)
+        if not isSecret and not overSecret and evt.spellId then
+            local rawOver = over
+            if rawOver < 0 then rawOver = 0 end
+            local recordAmt = amt - rawOver
+            if recordAmt > 0 then
+                RecordSpellAmount(evt.spellId, recordAmt)
+            end
+        end
+
         -- When amounts are readable: apply overheal subtraction, thresholds, throttling.
         local displayAmt
-        if not isSecret and not overSecret then
+        if not isSecret and not overSecret and spellFilterMode ~= "show" and spellFilterMode ~= "show_nomerge" then
             if over < 0 then over = 0 end
             displayAmt = conf.showOverheal and amt or (amt - over)
             if displayAmt <= 0 then return end
@@ -408,12 +642,17 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             local minT = tonumber(conf.minThreshold) or 0
             if displayAmt < minT then return end
 
-            local spamConf2 = KSBT.db.profile.spamControl
+            local spamConf2 = KSBT.db.char.spamControl
             local throttle2 = spamConf2 and spamConf2.throttling
             if throttle2 then
                 local globalMin = tonumber(throttle2.minHealing) or 0
                 if globalMin > 0 and displayAmt < globalMin then return end
             end
+        elseif not isSecret and not overSecret then
+            -- Whitelisted: still compute displayAmt
+            if over < 0 then over = 0 end
+            displayAmt = conf.showOverheal and amt or (amt - over)
+            if displayAmt <= 0 then return end
         end
         -- Secret: skip all arithmetic checks; trust CLEU that an event occurred.
 
@@ -422,7 +661,7 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             -- Secret value: tostring() works; overheal arithmetic skipped.
             baseText = tostring(evt.amount)
         else
-            baseText = tostring(math.floor(displayAmt + 0.5))
+            baseText = KSBT.FormatNumber and KSBT.FormatNumber(displayAmt) or tostring(math.floor(displayAmt + 0.5))
         end
         local text = baseText
 
@@ -440,7 +679,17 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             kind = kind,
             isCrit = evt.isCrit == true,
             school = evt.schoolMask,
+            spellId = evt.spellId,
+            spellName = evt.spellName,
+            overhealAmount = (not isSecret and not overSecret) and over or 0,
+            whitelisted = (spellFilterMode == "show" or spellFilterMode == "show_nomerge"),
         }
+
+        -- Per-spell merge control
+        if spellFilterMode == "auto_nomerge" or spellFilterMode == "show_nomerge" then
+            meta.noMerge = true
+        end
+
         local color
         if meta.isCrit then
             color = {r = 0.40, g = 1.00, b = 0.80}
@@ -449,6 +698,15 @@ function Probe:ProcessOutgoingEvent(evt, isReplay)
             color = {r = 0.20, g = 1.00, b = 0.20}
         end
 
-        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", baseText, text, color, meta, isReplay)
+        -- Percentile font scaling for direct (non-merged) emit
+        if not isSecret and not overSecret and evt.spellId and displayAmt then
+            local scale = GetPercentileScale(evt.spellId, displayAmt)
+            if scale > 1.0 then
+                meta.fontScale = scale
+            end
+        end
+
+        local emitAmt = (not isSecret and not overSecret) and displayAmt or 0
+        EmitOrMerge(kind, evt.spellId, conf.scrollArea or "Outgoing", emitAmt, baseText, text, color, meta, isReplay, isSecret or overSecret)
     end
 end

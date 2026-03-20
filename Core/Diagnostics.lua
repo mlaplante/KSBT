@@ -142,20 +142,12 @@ function Addon:StartEventProbe(secondsStr)
             .. argStr)
     end)
 
-    -- pcall + retry for RegisterEvent (Midnight protected-call phases)
-    local registered = false
-    local function tryRegister()
-        if registered then return end
-        local ok = pcall(function()
-            _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        end)
-        if ok then
-            registered = true
-        else
-            C_Timer.After(0.5, tryRegister)
-        end
+    -- Only attempt CLEU registration if the API exists (removed in Midnight).
+    if GetInfo then
+        _eventProbeFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    else
+        self:Print("CLEU event probe: combat log API not available in this client")
     end
-    tryRegister()
 
     self:Print(("CLEU event probe STARTED for %ds. Attack something or take damage."):format(seconds))
 
@@ -213,7 +205,7 @@ function Addon:StartOutgoingProbe(secondsStr)
                 tostring(amount), tostring(school)))
         elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
             print(("|cff00ff00KSBT-OutProbe|r SPELL unit=%s spellId=%s"):format(
-                tostring(unit), tostring(select(3, ...))))
+                tostring(unit), tostring(indicator)))
         end
     end)
 

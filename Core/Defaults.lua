@@ -26,6 +26,16 @@ KSBT.DEFAULTS = {
                 angle = 220,
             },
 
+            -- Show spell icons inline with scrolling text
+            showSpellIcons = true,
+            spellIconSize  = 16,    -- pixels
+
+            -- Number formatting
+            numberFormat = {
+                style    = "Full",    -- "Full" | "Short" | "Short (no decimal)"
+                decimals = 1,         -- 0, 1, or 2 (used by "Short" style)
+            },
+
             -- Master font settings
             font = {
                 face    = "Friz Quadrata TT",   -- Default WoW font
@@ -40,8 +50,8 @@ KSBT.DEFAULTS = {
         ------------------------------------------------------------------------
         scrollAreas = {
             ["Outgoing"] = {
-                xOffset   = 200,
-                yOffset   = 0,
+                xOffset   = 10,     -- percent of screen width from center
+                yOffset   = 0,      -- percent of screen height from center
                 width     = 200,
                 height    = 300,
                 alignment = "Center",
@@ -50,7 +60,7 @@ KSBT.DEFAULTS = {
                 animSpeed = 1.0,
             },
             ["Incoming"] = {
-                xOffset   = -200,
+                xOffset   = -10,
                 yOffset   = 0,
                 width     = 200,
                 height    = 300,
@@ -61,7 +71,7 @@ KSBT.DEFAULTS = {
             },
             ["Notifications"] = {
                 xOffset   = 0,
-                yOffset   = 200,
+                yOffset   = 15,
                 width     = 300,
                 height    = 100,
                 alignment = "Center",
@@ -122,23 +132,6 @@ KSBT.DEFAULTS = {
         },
 
         ------------------------------------------------------------------------
-        -- Tab 6: Spam Control
-        ------------------------------------------------------------------------
-        spamControl = {
-            merging = {
-                enabled     = true,
-                window      = 1.5,
-                showCount   = true,
-            },
-            throttling = {
-                minDamage     = 0,
-                minHealing    = 0,
-                hideAutoBelow = 0,
-            },
-            suppressDummyDamage = true,
-        },
-
-        ------------------------------------------------------------------------
         -- Tab 7: Cooldowns
         ------------------------------------------------------------------------
         cooldowns = {
@@ -179,6 +172,31 @@ KSBT.DEFAULTS = {
             captureEnabled = false,
             maxEntries     = 1000,
             log            = {},
+        },
+    },
+
+    char = {
+        spellFilters = {},
+        spamControlMigrated = false,
+        spamControl = {
+            merging = {
+                enabled     = true,
+                window      = 1.5,
+                showCount   = true,
+            },
+            throttling = {
+                minDamage        = 0,
+                minHealing       = 0,
+                hideAutoBelow    = 0,
+                postMergeDamage  = 0,
+                postMergeHealing = 0,
+            },
+            suppressDummyDamage = true,
+            percentileScaling = {
+                enabled    = true,
+                percentile = 95,
+                maxScale   = 1.5,
+            },
         },
     },
 }

@@ -10,6 +10,43 @@ local Addon = KSBT.Addon
 Core._initialized = Core._initialized or false
 Core._enabled     = Core._enabled or false
 
+------------------------------------------------------------------------
+-- Shared number formatter: converts amounts to display strings.
+-- Reads profile.general.numberFormat for style and decimal config.
+------------------------------------------------------------------------
+function KSBT.FormatNumber(amount)
+    local rounded = math.floor(amount + 0.5)
+    local db = KSBT.db and KSBT.db.profile
+    local conf = db and db.general and db.general.numberFormat
+    if not conf then return tostring(rounded) end
+
+    local style = conf.style or "Full"
+    if style == "Full" then
+        return tostring(rounded)
+    end
+
+    local decimals = tonumber(conf.decimals) or 1
+
+    if style == "Short (no decimal)" then
+        if rounded >= 1000000 then
+            return tostring(math.floor(rounded / 1000000 + 0.5)) .. "m"
+        elseif rounded >= 1000 then
+            return tostring(math.floor(rounded / 1000 + 0.5)) .. "k"
+        end
+        return tostring(rounded)
+    end
+
+    -- "Short" style with configurable decimals
+    if rounded >= 1000000 then
+        local val = rounded / 1000000
+        return string.format("%." .. decimals .. "f", val) .. "m"
+    elseif rounded >= 1000 then
+        local val = rounded / 1000
+        return string.format("%." .. decimals .. "f", val) .. "k"
+    end
+    return tostring(rounded)
+end
+
 
 function Core:IsMasterEnabled()
     return KSBT.db
@@ -25,10 +62,16 @@ function Core:IsCombatOnlyEnabled()
        and KSBT.db.profile.general.combatOnly == true
 end
 
-function Core:ShouldEmitNow()
+function Core:ShouldEmitNow(meta)
     if not self:IsMasterEnabled() then return false end
     if self:IsCombatOnlyEnabled() and not UnitAffectingCombat("player") then
-        return false
+        -- Allow combat events through even if UnitAffectingCombat hasn't
+        -- caught up yet.  The first hit that starts combat arrives before
+        -- PLAYER_REGEN_DISABLED, so the API still returns false.  Probe
+        -- events are inherently combat actions — let them pass.
+        if not (meta and meta.probe) then
+            return false
+        end
     end
     return true
 end
@@ -45,26 +88,25 @@ function Core:ApplyBlizzardFCTCVars()
 
     local function trySet(name, value)
         if type(SetCVar) ~= "function" or type(GetCVar) ~= "function" then
-            if Addon and Addon.Print then
-                Addon:Print(("CVar API unavailable; cannot set %s."):format(name))
-            end
             return
         end
 
-        local ok = pcall(SetCVar, name, value)
-        local after = GetCVar(name)
+        -- If CVar doesn't exist on this client build, skip silently.
+        local before = GetCVar(name)
+        if before == nil then return end
 
-        -- If Blizzard ignores it, warn once per click (good enough for now).
-        if not ok or tostring(after) ~= tostring(value) then
+        local ok = pcall(SetCVar, name, value)
+        if not ok then
+            local after = GetCVar(name)
             if Addon and Addon.Print then
-                Addon:Print(("Attempted to set %s=%s, but client reports %s. Blizzard may be ignoring/locking this CVar."):format(
+                Addon:Print(("Failed to set %s=%s (current: %s). Blizzard may be locking this CVar."):format(
                     name, tostring(value), tostring(after)
                 ))
             end
         end
     end
 
-    -- These are the historical CVars. If Blizzard changes them again, we’ll adapt.
+    -- These are the historical CVars. If Blizzard changes them again, we'll adapt.
     if g.suppressBlizzardDamage then
         trySet("floatingCombatTextCombatDamage", "0")
     else

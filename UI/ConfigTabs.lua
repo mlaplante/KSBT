@@ -113,6 +113,74 @@ function KSBT.BuildTab_General()
                 end,
             },
 
+            headerIcons = {
+                type  = "header",
+                name  = "Spell Icons",
+                order = 5,
+            },
+            showSpellIcons = {
+                type  = "toggle",
+                name  = "Show Spell Icons",
+                desc  = "Display spell icons inline with scrolling combat text.",
+                width = "full",
+                order = 6,
+                get   = function() return KSBT.db.profile.general.showSpellIcons end,
+                set   = function(_, val)
+                    KSBT.db.profile.general.showSpellIcons = val
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("KrothSBT")
+                end,
+            },
+            spellIconSize = {
+                type   = "range",
+                name   = "Icon Size",
+                desc   = "Size of inline spell icons in pixels.",
+                order  = 7,
+                min    = 10,
+                max    = 32,
+                step   = 1,
+                hidden = function() return not KSBT.db.profile.general.showSpellIcons end,
+                get    = function() return KSBT.db.profile.general.spellIconSize end,
+                set    = function(_, val)
+                    KSBT.db.profile.general.spellIconSize = val
+                end,
+            },
+
+            ----------------------------------------------------------------
+            -- Number Formatting
+            ----------------------------------------------------------------
+            headerNumberFormat = {
+                type  = "header",
+                name  = "Number Formatting",
+                order = 8,
+            },
+            numberStyle = {
+                type   = "select",
+                name   = "Format Style",
+                desc   = "How to display damage and healing numbers.",
+                order  = 8.1,
+                values = {
+                    ["Full"]                = "Full (118749)",
+                    ["Short"]               = "Short (118.7k)",
+                    ["Short (no decimal)"]  = "Short no decimal (119k)",
+                },
+                get    = function() return KSBT.db.profile.general.numberFormat.style end,
+                set    = function(_, val) KSBT.db.profile.general.numberFormat.style = val end,
+            },
+            numberDecimals = {
+                type     = "range",
+                name     = "Decimal Places",
+                desc     = "Number of decimal places for shortened numbers.",
+                order    = 8.2,
+                min      = 0,
+                max      = 2,
+                step     = 1,
+                hidden   = function()
+                    return KSBT.db.profile.general.numberFormat.style ~= "Short"
+                end,
+                get      = function() return KSBT.db.profile.general.numberFormat.decimals end,
+                set      = function(_, val) KSBT.db.profile.general.numberFormat.decimals = val end,
+            },
+
             headerFont = {
                 type  = "header",
                 name  = "Master Font",
@@ -298,8 +366,8 @@ local function CreateDefaultScrollArea(name)
     if KSBT.db.profile.scrollAreas[name] then return name end
 
     KSBT.db.profile.scrollAreas[name] = {
-        xOffset   = -450,
-        yOffset   = 250,
+        xOffset   = -20,
+        yOffset   = 20,
         width     = 200,
         height    = 300,
         alignment = "Center",
@@ -491,8 +559,8 @@ function KSBT.BuildTab_ScrollAreas()
                             end
 
                             KSBT.db.profile.scrollAreas[val] = {
-                                xOffset   = -450,
-                                yOffset   = 250,
+                                xOffset   = -20,
+                                yOffset   = 20,
                                 width     = 200,
                                 height    = 300,
                                 alignment = "Center",
@@ -564,12 +632,12 @@ function KSBT.BuildTab_ScrollAreas()
             },
             xOffset = {
                 type   = "range",
-                name   = "X Offset",
-                desc   = "Horizontal position relative to screen center.",
+                name   = "X Offset (%)",
+                desc   = "Horizontal position as % of screen width from center.",
                 order  = 11,
                 min    = KSBT.SCROLL_OFFSET_MIN,
                 max    = KSBT.SCROLL_OFFSET_MAX,
-                step   = 5,
+                step   = 1,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
                     local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
@@ -588,12 +656,12 @@ function KSBT.BuildTab_ScrollAreas()
             },
             yOffset = {
                 type   = "range",
-                name   = "Y Offset",
-                desc   = "Vertical position relative to screen center.",
+                name   = "Y Offset (%)",
+                desc   = "Vertical position as % of screen height from center.",
                 order  = 12,
                 min    = KSBT.SCROLL_OFFSET_MIN,
                 max    = KSBT.SCROLL_OFFSET_MAX,
-                step   = 5,
+                step   = 1,
                 hidden = function() return not selectedScrollArea end,
                 get    = function()
                     local area = KSBT.db.profile.scrollAreas[selectedScrollArea]
@@ -858,12 +926,13 @@ function KSBT.BuildTab_ScrollAreas()
             animSpeed = {
                 type   = "range",
                 name   = "Animation Speed",
-                desc   = "Duration in seconds for text animation (1.0 = normal).",
+                desc   = "How fast text scrolls. 0.25 = very slow, 1.0 = normal, 5.0 = very fast.",
                 order  = 25,
                 width  = "full",
-                min    = 0.5,
-                max    = 3.0,
-                step   = 0.1,
+                min    = 0.25,
+                max    = 5.0,
+                step   = 0.05,
+                isPercent = false,
                 -- Hidden when no area selected, or when animation style is Static
                 hidden = function()
                     if not selectedScrollArea then return true end
@@ -1514,6 +1583,12 @@ function KSBT.BuildTab_SpamControl()
             ----------------------------------------------------------------
             -- Merging
             ----------------------------------------------------------------
+            charNote = {
+                type     = "description",
+                name     = "|cFFFFCC00These settings are specific to your current character.|r",
+                order    = 0.5,
+                fontSize = "medium",
+            },
             headerMerge = {
                 type  = "header",
                 name  = "Spell Merging",
@@ -1532,8 +1607,8 @@ function KSBT.BuildTab_SpamControl()
                 desc  = "Merge rapid repeated hits from the same spell.",
                 width = "full",
                 order = 3,
-                get   = function() return KSBT.db.profile.spamControl.merging.enabled end,
-                set   = function(_, val) KSBT.db.profile.spamControl.merging.enabled = val end,
+                get   = function() return KSBT.db.char.spamControl.merging.enabled end,
+                set   = function(_, val) KSBT.db.char.spamControl.merging.enabled = val end,
             },
             mergeWindow = {
                 type     = "range",
@@ -1543,9 +1618,9 @@ function KSBT.BuildTab_SpamControl()
                 min      = KSBT.MERGE_WINDOW_MIN,
                 max      = KSBT.MERGE_WINDOW_MAX,
                 step     = 0.1,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.merging.window end,
-                set      = function(_, val) KSBT.db.profile.spamControl.merging.window = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.merging.window end,
+                set      = function(_, val) KSBT.db.char.spamControl.merging.window = val end,
             },
             mergeShowCount = {
                 type     = "toggle",
@@ -1553,42 +1628,49 @@ function KSBT.BuildTab_SpamControl()
                 desc     = "Display hit count (e.g., \"x3\") alongside merged damage.",
                 width    = "full",
                 order    = 5,
-                disabled = function() return not KSBT.db.profile.spamControl.merging.enabled end,
-                get      = function() return KSBT.db.profile.spamControl.merging.showCount end,
-                set      = function(_, val) KSBT.db.profile.spamControl.merging.showCount = val end,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.merging.showCount end,
+                set      = function(_, val) KSBT.db.char.spamControl.merging.showCount = val end,
             },
 
             ----------------------------------------------------------------
-            -- Throttling
+            -- Throttling (Pre-Merge)
             ----------------------------------------------------------------
             headerThrottle = {
                 type  = "header",
-                name  = "Throttling",
+                name  = "Pre-Merge Thresholds",
                 order = 10,
+            },
+            throttleDesc = {
+                type     = "description",
+                name     = "Filter individual hits before merging. Use low values (500-2000) " ..
+                           "to remove tiny noise while letting multi-hit abilities through to the merge stage.",
+                order    = 10.5,
+                fontSize = "medium",
             },
             minDamage = {
                 type    = "range",
-                name    = "Global Minimum Damage",
-                desc    = "Suppress all damage events below this value (0 = show all).",
+                name    = "Pre-Merge Minimum Damage",
+                desc    = "Suppress individual damage hits below this value before merging (0 = show all).",
                 order   = 11,
                 min     = 0,
-                max     = 10000,
-                softMax = 2000,
-                step    = 25,
-                get     = function() return KSBT.db.profile.spamControl.throttling.minDamage end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minDamage = val end,
+                max     = 100000,
+                softMax = 50000,
+                step    = 100,
+                get     = function() return KSBT.db.char.spamControl.throttling.minDamage end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.minDamage = val end,
             },
             minHealing = {
                 type    = "range",
-                name    = "Global Minimum Healing",
-                desc    = "Suppress all healing events below this value (0 = show all).",
+                name    = "Pre-Merge Minimum Healing",
+                desc    = "Suppress individual healing hits below this value before merging (0 = show all).",
                 order   = 12,
                 min     = 0,
-                max     = 10000,
-                softMax = 2000,
-                step    = 25,
-                get     = function() return KSBT.db.profile.spamControl.throttling.minHealing end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.minHealing = val end,
+                max     = 100000,
+                softMax = 50000,
+                step    = 100,
+                get     = function() return KSBT.db.char.spamControl.throttling.minHealing end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.minHealing = val end,
             },
             hideAutoBelow = {
                 type    = "range",
@@ -1599,8 +1681,51 @@ function KSBT.BuildTab_SpamControl()
                 max     = 5000,
                 softMax = 1000,
                 step    = 25,
-                get     = function() return KSBT.db.profile.spamControl.throttling.hideAutoBelow end,
-                set     = function(_, val) KSBT.db.profile.spamControl.throttling.hideAutoBelow = val end,
+                get     = function() return KSBT.db.char.spamControl.throttling.hideAutoBelow end,
+                set     = function(_, val) KSBT.db.char.spamControl.throttling.hideAutoBelow = val end,
+            },
+
+            ----------------------------------------------------------------
+            -- Post-Merge Thresholds
+            ----------------------------------------------------------------
+            headerPostMerge = {
+                type  = "header",
+                name  = "Post-Merge Thresholds",
+                order = 15,
+            },
+            postMergeDesc = {
+                type     = "description",
+                name     = "Filter merged totals after accumulation. Set higher than pre-merge " ..
+                           "to ensure multi-hit abilities like Rapid Fire display correctly. " ..
+                           "Only applies when spell merging is enabled.",
+                order    = 15.5,
+                fontSize = "medium",
+            },
+            postMergeDamage = {
+                type     = "range",
+                name     = "Post-Merge Minimum Damage",
+                desc     = "Suppress merged damage totals below this value (0 = show all merged).",
+                order    = 16,
+                min      = KSBT.POST_MERGE_THRESHOLD_MIN,
+                max      = KSBT.POST_MERGE_THRESHOLD_MAX,
+                softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
+                step     = KSBT.POST_MERGE_THRESHOLD_STEP,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.throttling.postMergeDamage end,
+                set      = function(_, val) KSBT.db.char.spamControl.throttling.postMergeDamage = val end,
+            },
+            postMergeHealing = {
+                type     = "range",
+                name     = "Post-Merge Minimum Healing",
+                desc     = "Suppress merged healing totals below this value (0 = show all merged).",
+                order    = 17,
+                min      = KSBT.POST_MERGE_THRESHOLD_MIN,
+                max      = KSBT.POST_MERGE_THRESHOLD_MAX,
+                softMax  = KSBT.POST_MERGE_THRESHOLD_SOFT_MAX,
+                step     = KSBT.POST_MERGE_THRESHOLD_STEP,
+                disabled = function() return not KSBT.db.char.spamControl.merging.enabled end,
+                get      = function() return KSBT.db.char.spamControl.throttling.postMergeHealing end,
+                set      = function(_, val) KSBT.db.char.spamControl.throttling.postMergeHealing = val end,
             },
 
             ----------------------------------------------------------------
@@ -1618,8 +1743,56 @@ function KSBT.BuildTab_SpamControl()
                         "generate (these are not real damage).",
                 width = "full",
                 order = 21,
-                get   = function() return KSBT.db.profile.spamControl.suppressDummyDamage end,
-                set   = function(_, val) KSBT.db.profile.spamControl.suppressDummyDamage = val end,
+                get   = function() return KSBT.db.char.spamControl.suppressDummyDamage end,
+                set   = function(_, val) KSBT.db.char.spamControl.suppressDummyDamage = val end,
+            },
+            ----------------------------------------------------------------
+            -- Percentile Scaling
+            ----------------------------------------------------------------
+            headerPercentile = {
+                type  = "header",
+                name  = "Percentile Scaling",
+                order = 25,
+            },
+            percentileDesc = {
+                type     = "description",
+                name     = "Scale up the font size for exceptionally high hits. The addon tracks each " ..
+                           "spell's damage distribution and enlarges outliers above your configured percentile.",
+                order    = 25.5,
+                fontSize = "medium",
+            },
+            percentileEnabled = {
+                type  = "toggle",
+                name  = "Enable Percentile Scaling",
+                desc  = "Increase font size for hits above the percentile threshold.",
+                width = "full",
+                order = 26,
+                get   = function() return KSBT.db.char.spamControl.percentileScaling.enabled end,
+                set   = function(_, val) KSBT.db.char.spamControl.percentileScaling.enabled = val end,
+            },
+            percentileThreshold = {
+                type     = "range",
+                name     = "Percentile Threshold",
+                desc     = "Hits above this percentile are scaled up. Higher = rarer/more selective.",
+                order    = 27,
+                min      = 50,
+                max      = 99,
+                step     = 1,
+                disabled = function() return not KSBT.db.char.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.char.spamControl.percentileScaling.percentile end,
+                set      = function(_, val) KSBT.db.char.spamControl.percentileScaling.percentile = val end,
+            },
+            percentileMaxScale = {
+                type     = "range",
+                name     = "Maximum Scale",
+                desc     = "Maximum font size multiplier for the highest outliers (1.0 = no change, 2.0 = double size).",
+                order    = 28,
+                min      = 1.0,
+                max      = 2.0,
+                step     = 0.1,
+                disabled = function() return not KSBT.db.char.spamControl.percentileScaling.enabled end,
+                get      = function() return KSBT.db.char.spamControl.percentileScaling.maxScale end,
+                set      = function(_, val) KSBT.db.char.spamControl.percentileScaling.maxScale = val end,
             },
         },
     }
@@ -1707,32 +1880,12 @@ function KSBT.BuildTab_Cooldowns()
                 name  = "Tracked Spells",
                 order = 10,
             },
-            dragDropZonePlaceholder = {
-                type     = "description",
-                name     = function()
-                    -- Trigger overlay creation when this renders
-                    if KSBT.CreateCooldownDropOverlay then
-                        C_Timer.After(0.1, KSBT.CreateCooldownDropOverlay)
-                    end
-                    return ""  -- Empty - overlay will render over this space
-                end,
-                order    = 11,
-                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
-            },
-            manualEntryLabel = {
-                type     = "description",
-                name     = "\n\n\n\n\n\n\n\n|cFFFFFFFFOr enter spell ID manually:|r",
-                order    = 20,
-                fontSize = "medium",
-                hidden   = function() return not KSBT.db.profile.cooldowns.enabled end,
-            },
             addSpellInput = {
                 type     = "input",
                 name     = "Spell ID",
                 desc     = "Enter a numeric spell ID to track.",
-                order    = 21,
+                order    = 11,
                 width    = "normal",
-                disabled = function() return not KSBT.db.profile.cooldowns.enabled end,
                 get      = function() return cooldownSpellInput end,
                 set      = function(_, val)
                     local spellID = tonumber(val)
@@ -1759,10 +1912,9 @@ function KSBT.BuildTab_Cooldowns()
                 type     = "execute",
                 name     = "Add",
                 desc     = "Add the entered spell ID to tracking.",
-                order    = 22,
+                order    = 12,
                 width    = "half",
                 disabled = function()
-                    if not KSBT.db.profile.cooldowns.enabled then return true end
                     return tonumber(cooldownSpellInput) == nil
                 end,
                 func     = function()
@@ -1781,6 +1933,28 @@ function KSBT.BuildTab_Cooldowns()
                     end
                 end,
             },
+            dragDropContainer = {
+                type     = "group",
+                name     = " ",
+                order    = 14,
+                inline   = true,
+                args     = {
+                    dragDropLabel = {
+                        type     = "description",
+                        name     = function()
+                            C_Timer.After(0, function()
+                                if KSBT.HookDragDropInline then
+                                    KSBT.HookDragDropInline()
+                                end
+                            end)
+                            return "Drag from spellbook or action bar:\n\n|cFF4A9EFF[ Drag Spell Here ]|r"
+                        end,
+                        order    = 1,
+                        fontSize = "medium",
+                        width    = "full",
+                    },
+                },
+            },
             trackedListHeader = {
                 type     = "description",
                 name     = function()
@@ -1792,13 +1966,13 @@ function KSBT.BuildTab_Cooldowns()
                     end
                     return "\n|cFFFFFFFFCurrently tracking " .. count .. " spell(s):|r"
                 end,
-                order    = 30,
+                order    = 20,
                 fontSize = "medium",
             },
             trackedListContainer = {
                 type     = "group",
                 name     = "Tracked Spells List",
-                order    = 31,
+                order    = 21,
                 childGroups = "tree",  -- Makes it a collapsible tree with auto-scroll
                 hidden   = function()
                     local count = 0
@@ -2211,8 +2385,215 @@ function KSBT.TestScrollArea(areaName)
                 })
             else
                 -- Fallback: print to chat until Display system is implemented
-                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
+                KSBT.Addon:Print("|cFF4A9EFFTEST 12345|r -> [" .. areaName .. "] (" .. i .. "/" .. TEST_COUNT .. ")")
             end
         end)
     end
+end
+
+------------------------------------------------------------------------
+-- TAB 9: SPELL FILTERS
+-- Per-character spell whitelist/blacklist with auto-discovery.
+-- Spells are discovered automatically during combat.
+------------------------------------------------------------------------
+function KSBT.BuildTab_SpellFilters()
+    local FILTER_MODES = {
+        ["auto"]          = "Auto",
+        ["auto_nomerge"]  = "Auto (no merge)",
+        ["show"]          = "Always Show",
+        ["show_nomerge"]  = "Always Show (no merge)",
+        ["hide"]          = "Always Hide",
+    }
+
+    local tab = {
+        type  = "group",
+        name  = "Spell Filters",
+        order = 9,
+        args  = {
+            headerFilters = {
+                type  = "header",
+                name  = "Per-Spell Filtering",
+                order = 1,
+            },
+            filterDesc = {
+                type     = "description",
+                name     = "Spells are automatically discovered as you play. Set each spell to:\n" ..
+                           "  Auto \226\128\148 normal threshold filtering\n" ..
+                           "  Always Show \226\128\148 bypass all thresholds (whitelist)\n" ..
+                           "  Always Hide \226\128\148 never display (blacklist)",
+                order    = 2,
+                fontSize = "medium",
+            },
+            resetAll = {
+                type    = "execute",
+                name    = "Reset All to Auto",
+                desc    = "Set every discovered spell back to Auto (use thresholds).",
+                order   = 3,
+                width   = "normal",
+                confirm = true,
+                confirmText = "Reset all spell filters to Auto?",
+                func    = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if filters then
+                        for _, entry in pairs(filters) do
+                            if type(entry) == "table" then
+                                entry.mode = "auto"
+                            end
+                        end
+                    end
+                end,
+            },
+            clearList = {
+                type    = "execute",
+                name    = "Clear Spell List",
+                desc    = "Wipe all discovered spells. They will re-appear as you play.",
+                order   = 4,
+                width   = "normal",
+                confirm = true,
+                confirmText = "Clear all discovered spells? They will be re-discovered in combat.",
+                func    = function()
+                    if KSBT.db and KSBT.db.char then
+                        KSBT.db.char.spellFilters = {}
+                    end
+                end,
+            },
+            noSpells = {
+                type   = "description",
+                name   = "\nNo spells discovered yet. Enter combat to auto-populate this list.",
+                order  = 5,
+                fontSize = "medium",
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return false end
+                    for _ in pairs(filters) do return true end
+                    return false
+                end,
+            },
+            headerDamage = {
+                type   = "header",
+                name   = "Damage Spells",
+                order  = 10,
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return true end
+                    for _, entry in pairs(filters) do
+                        if type(entry) == "table" and entry.kind == "damage" then return false end
+                    end
+                    return true
+                end,
+            },
+            headerHealing = {
+                type   = "header",
+                name   = "Healing Spells",
+                order  = 1000,
+                hidden = function()
+                    local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                    if not filters then return true end
+                    for _, entry in pairs(filters) do
+                        if type(entry) == "table" and entry.kind == "heal" then return false end
+                    end
+                    return true
+                end,
+            },
+        },
+    }
+
+    -- Dynamically inject per-spell dropdowns using slot-based pattern.
+    -- Pre-allocate slots with hidden/name/get/set callbacks that read live data.
+    -- This ensures spells discovered after login appear without rebuilding the table.
+    local MAX_SPELL_SLOTS = 100  -- max spells per kind (damage/healing)
+
+    -- Helper: get sorted spell list for a given kind from live DB
+    local function getSortedSpells(targetKind)
+        local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+        if not filters then return {} end
+        local sorted = {}
+        for id, entry in pairs(filters) do
+            if type(entry) == "table" and entry.kind == targetKind then
+                sorted[#sorted + 1] = {
+                    id = id,
+                    name = entry.name or ("Spell " .. id),
+                }
+            end
+        end
+        table.sort(sorted, function(a, b) return a.name:lower() < b.name:lower() end)
+        return sorted
+    end
+
+    -- Helper: get the spellId key at a given slot index for a kind
+    local function getSpellAtSlot(targetKind, slotIndex)
+        local sorted = getSortedSpells(targetKind)
+        local item = sorted[slotIndex]
+        return item and item.id or nil, item and item.name or nil
+    end
+
+    -- Damage spell slots (order 11+)
+    for slot = 1, MAX_SPELL_SLOTS do
+        local slotIndex = slot
+
+        tab.args["dmg_slot_" .. slot] = {
+            type   = "select",
+            name   = function()
+                local _, name = getSpellAtSlot("damage", slotIndex)
+                return name or ""
+            end,
+            desc   = function()
+                local id = getSpellAtSlot("damage", slotIndex)
+                return id and ("Spell ID: " .. id) or ""
+            end,
+            order  = 10 + slot,
+            values = FILTER_MODES,
+            hidden = function() return getSpellAtSlot("damage", slotIndex) == nil end,
+            get    = function()
+                local id = getSpellAtSlot("damage", slotIndex)
+                if not id then return "auto" end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                return f and f.mode or "auto"
+            end,
+            set    = function(_, val)
+                local id = getSpellAtSlot("damage", slotIndex)
+                if not id then return end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                if f then f.mode = val end
+            end,
+        }
+    end
+
+    -- Healing spell slots (order 1001+)
+    for slot = 1, MAX_SPELL_SLOTS do
+        local slotIndex = slot
+
+        tab.args["heal_slot_" .. slot] = {
+            type   = "select",
+            name   = function()
+                local _, name = getSpellAtSlot("heal", slotIndex)
+                return name or ""
+            end,
+            desc   = function()
+                local id = getSpellAtSlot("heal", slotIndex)
+                return id and ("Spell ID: " .. id) or ""
+            end,
+            order  = 1000 + slot,
+            values = FILTER_MODES,
+            hidden = function() return getSpellAtSlot("heal", slotIndex) == nil end,
+            get    = function()
+                local id = getSpellAtSlot("heal", slotIndex)
+                if not id then return "auto" end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                return f and f.mode or "auto"
+            end,
+            set    = function(_, val)
+                local id = getSpellAtSlot("heal", slotIndex)
+                if not id then return end
+                local filters = KSBT.db and KSBT.db.char and KSBT.db.char.spellFilters
+                local f = filters and filters[id]
+                if f then f.mode = val end
+            end,
+        }
+    end
+
+    return tab
 end

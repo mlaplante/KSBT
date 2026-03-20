@@ -5,23 +5,6 @@
 local ADDON_NAME, KSBT = ...
 
 ------------------------------------------------------------------------
--- Suppress ADDON_ACTION_FORBIDDEN popup for this addon.
--- Midnight's taint system triggers false positives on RegisterEvent;
--- the pcall+retry loop in our parsers handles it gracefully.
-------------------------------------------------------------------------
-if StaticPopup_Show then
-    local origStaticPopupShow = StaticPopup_Show
-    StaticPopup_Show = function(which, text_arg1, ...)
-        if which == "ADDON_ACTION_FORBIDDEN"
-        and type(text_arg1) == "string"
-        and text_arg1:find("KBST", 1, true) then
-            return nil
-        end
-        return origStaticPopupShow(which, text_arg1, ...)
-    end
-end
-
-------------------------------------------------------------------------
 -- Create the Ace3 addon object
 ------------------------------------------------------------------------
 KSBT.Addon = LibStub("AceAddon-3.0"):NewAddon("KrothSBT", "AceConsole-3.0")
@@ -37,6 +20,52 @@ function Addon:OnInitialize()
 
     -- Store reference in shared namespace for cross-file access
     KSBT.db = self.db
+
+    -- One-time migration: convert pixel offsets to screen-percentage offsets.
+    -- Old values were in -500..500 (pixels); new values are -50..50 (%).
+    -- Any |offset| > 50 is certainly an old pixel value.
+    if self.db.profile and self.db.profile.scrollAreas then
+        local screenW, screenH = UIParent:GetWidth(), UIParent:GetHeight()
+        for name, area in pairs(self.db.profile.scrollAreas) do
+            if area.xOffset and (area.xOffset > 50 or area.xOffset < -50) then
+                area.xOffset = (area.xOffset / screenW) * 100
+                area.xOffset = math.floor(area.xOffset * 10 + 0.5) / 10
+            end
+            if area.yOffset and (area.yOffset > 50 or area.yOffset < -50) then
+                area.yOffset = (area.yOffset / screenH) * 100
+                area.yOffset = math.floor(area.yOffset * 10 + 0.5) / 10
+            end
+        end
+    end
+
+    -- One-time migration: copy profile spam control settings to char storage.
+    -- Each character migrates independently from the shared profile.
+    if self.db.char and not self.db.char.spamControlMigrated then
+        local profSpam = self.db.profile and self.db.profile.spamControl
+        if profSpam then
+            local charSpam = self.db.char.spamControl
+            -- Deep-copy profile values into char (only non-nil values)
+            if profSpam.merging then
+                for k, v in pairs(profSpam.merging) do
+                    charSpam.merging[k] = v
+                end
+            end
+            if profSpam.throttling then
+                for k, v in pairs(profSpam.throttling) do
+                    charSpam.throttling[k] = v
+                end
+            end
+            if profSpam.suppressDummyDamage ~= nil then
+                charSpam.suppressDummyDamage = profSpam.suppressDummyDamage
+            end
+            if profSpam.percentileScaling then
+                for k, v in pairs(profSpam.percentileScaling) do
+                    charSpam.percentileScaling[k] = v
+                end
+            end
+        end
+        self.db.char.spamControlMigrated = true
+    end
 
     if KSBT.Core and KSBT.Core.Minimap and KSBT.Core.Minimap.Init then
         KSBT.Core.Minimap:Init()
@@ -181,29 +210,6 @@ function Addon:HandleSlashCommand(input)
         self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION)
         return
 
-    -- Diagnostic: test full display chain without any combat events
-    elseif cmd == "testdisplay" then
-        self:TestDisplay()
-        return
-
-    -- Diagnostic: dump CLEU events to chat
-    elseif cmd == "probeevents" then
-        if rest and rest:lower() == "stop" then
-            self:StopEventProbe(false)
-        else
-            self:StartEventProbe(rest)
-        end
-        return
-
-    -- Diagnostic: show event registration status + live UNIT_COMBAT target probe
-    elseif cmd == "probeout" then
-        if rest and rest:lower() == "stop" then
-            self:StopOutgoingProbe()
-        else
-            self:StartOutgoingProbe(rest)
-        end
-        return
-
     elseif cmd == "debugframe" then
         if KSBT.DebugLog then
             KSBT.DebugLog:Toggle()
@@ -251,9 +257,6 @@ function Addon:HandleSlashCommand(input)
 
     self:Print("Unknown command: " .. cmd)
     self:Print("Usage: /ksbt [minimap | debug 0-3 | reset | version]")
-    self:Print("  testdisplay              — fire test text into the Outgoing area")
-    self:Print("  probeevents [sec|stop]   — dump CLEU events to chat")
-    self:Print("  probeout [sec|stop]      — probe outgoing events (UNIT_COMBAT target)")
     self:Print("  debugframe               — toggle spell learning debug window")
     self:Print("  debuglevel [0-3]         — set spell learning debug verbosity")
     self:Print("  fingerprints             — dump learned spell profiles")
@@ -266,65 +269,6 @@ end
 function Addon:OpenConfig()
     if self.configDialog then
         self.configDialog:Open("KrothSBT")
-
-        local frame = self.configDialog.OpenFrames["KrothSBT"]
-        if frame and frame.frame then
-            local f = frame.frame
-
-            -- Prevent AceConfigDialog from auto-closing when spellbook opens
-            if not f.tsbtHooked then
-                f.tsbtHooked = true
-
-                -- Store original Hide function
-                local origHide = f.Hide
-
-                -- Hook Hide to block auto-closes
-                f.Hide = function(self, ...)
-                    -- Only allow closes when explicitly permitted
-                    if not self.tsbtAllowClose then return end
-                    return origHide(self, ...)
-                end
-            end
-
-            -- Find the close button by searching the frame's children
-            local function findCloseButton(parent, depth)
-                depth = depth or 0
-                if depth > 0 then return end -- ONLY check depth 0!
-
-                for i = 1, parent:GetNumChildren() do
-                    local child = select(i, parent:GetChildren())
-                    if child and child.GetObjectType and child:GetObjectType() ==
-                        "Button" then
-                        local text = child:GetText()
-                        if text and (text:lower():match("close") or text == "X") then
-                            child:HookScript("PreClick", function()
-                                f.tsbtAllowClose = true
-                                C_Timer.After(0.05, function()
-                                    f.tsbtAllowClose = false
-                                end)
-                            end)
-                        end
-                    end
-                end
-            end
-
-            findCloseButton(f)
-
-            -- ESC key handler
-            f:EnableKeyboard(true)
-            f:SetPropagateKeyboardInput(true)
-            f:SetScript("OnKeyDown", function(self, key)
-                if key == "ESCAPE" then
-                    self.tsbtAllowClose = true
-                    self:Hide()
-                    C_Timer.After(0.05, function()
-                        if self then
-                            self.tsbtAllowClose = false
-                        end
-                    end)
-                end
-            end)
-        end
     end
 end
 
