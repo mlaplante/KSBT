@@ -79,6 +79,14 @@ function Addon:OnInitialize()
         end
     end
 
+    -- Initialize spell learning system
+    if KSBT.SpellFingerprints then
+        KSBT.SpellFingerprints:Load()
+    end
+    if KSBT.SpellMatcher then
+        KSBT.SpellMatcher:Init()
+    end
+
     self:Print(KSBT.ADDON_TITLE .. " v" .. KSBT.VERSION ..
                    " loaded. Type /ksbt to configure.")
 end
@@ -196,6 +204,49 @@ function Addon:HandleSlashCommand(input)
         end
         return
 
+    elseif cmd == "debugframe" then
+        if KSBT.DebugLog then
+            KSBT.DebugLog:Toggle()
+        else
+            print("|cFF4A9EFFKSBT|r Debug frame not available")
+        end
+        return
+
+    elseif cmd == "debuglevel" then
+        if KSBT.DebugLog then
+            KSBT.DebugLog:SetLevel(rest)
+        else
+            print("|cFF4A9EFFKSBT|r Debug frame not available")
+        end
+        return
+
+    elseif cmd == "fingerprints" then
+        if KSBT.SpellFingerprints then
+            local lines = KSBT.SpellFingerprints:GetSummary()
+            if #lines == 0 then
+                print("|cFF4A9EFFKSBT|r No fingerprints recorded yet.")
+            else
+                if KSBT.DebugLog then
+                    KSBT.DebugLog:Toggle()
+                    for _, line in ipairs(lines) do
+                        KSBT.DebugLog:Add(0, "white", line)
+                    end
+                else
+                    for _, line in ipairs(lines) do
+                        print("|cFF4A9EFFKSBT|r " .. line)
+                    end
+                end
+            end
+        end
+        return
+
+    elseif cmd == "resetfingerprints" then
+        if KSBT.SpellFingerprints then
+            KSBT.SpellFingerprints:Reset()
+            print("|cFF4A9EFFKSBT|r Fingerprints reset.")
+        end
+        return
+
     end
 
     self:Print("Unknown command: " .. cmd)
@@ -203,6 +254,10 @@ function Addon:HandleSlashCommand(input)
     self:Print("  testdisplay              — fire test text into the Outgoing area")
     self:Print("  probeevents [sec|stop]   — dump CLEU events to chat")
     self:Print("  probeout [sec|stop]      — probe outgoing events (UNIT_COMBAT target)")
+    self:Print("  debugframe               — toggle spell learning debug window")
+    self:Print("  debuglevel [0-3]         — set spell learning debug verbosity")
+    self:Print("  fingerprints             — dump learned spell profiles")
+    self:Print("  resetfingerprints        — clear all learned spell data")
 end
 
 ------------------------------------------------------------------------
