@@ -104,9 +104,8 @@ local _lastCLEUOutgoing = 0
 local _cleuOutgoingMark = false
 
 -- Last spell cast tracker (for UNIT_COMBAT which lacks spellId).
-local _lastCastSpellId   = nil
-local _lastCastSpellName = nil
-local _lastCastTime      = 0
+-- Cast history is managed by KSBT.CastHistory (Parser/CastHistory.lua)
+-- Legacy single-cast tracking removed in favor of rolling buffer
 
 local function HandleCLEU()
     if not GetCombatLogInfo then return end
@@ -328,27 +327,32 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
         if CombatLog._cleuRegistered and not _cleuOutgoingMark then return end
         _cleuOutgoingMark = false
 
-        -- Attach last-cast spell info if recent enough (1.5s window).
-        local spellId, spellName
-        if _lastCastTime and (now - _lastCastTime) < 1.5 then
-            spellId   = _lastCastSpellId
-            spellName = _lastCastSpellName
-        end
-
-        EmitOutgoing({
+        local evt = {
             ts         = now,
             kind       = kind,
             amount     = amount,
             isSecret   = secret,
-            isAuto     = (spellId == nil),
+            isAuto     = true,
             isCrit     = isCrit,
             isPeriodic = false,
-            spellId    = spellId,
-            spellName  = spellName,
+            spellId    = nil,
+            spellName  = nil,
             schoolMask = school or 1,
             destFlags  = nil,
             targetName = nil,
-        })
+        }
+
+        -- Attempt spell attribution via learning system
+        if not evt.spellId then
+            local matchId, matchName, confidence = KSBT.SpellMatcher:Match(
+                evt.amount, evt.schoolMask, evt.isCrit, evt.isPeriodic, now)
+            if matchId then
+                evt.spellId   = matchId
+                evt.spellName = matchName
+            end
+        end
+
+        EmitOutgoing(evt)
     end
 end
 
@@ -357,9 +361,27 @@ end
 ------------------------------------------------------------------------
 local function HandleSpellcastSucceeded(unit, _, spellId)
     if unit ~= "player" then return end
-    _lastCastSpellId   = spellId
-    _lastCastSpellName = SpellNameForId(spellId)
-    _lastCastTime      = GetTime()
+    local name = SpellNameForId(spellId)
+    KSBT.CastHistory:Push(spellId, name, GetTime())
+
+    -- Debug log (level 2 = observations + cast tracking)
+    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+        KSBT.DebugLog:Add(2, "gray",
+            string.format("Cast: %s #%d at %s",
+                name or "?", spellId, date("%H:%M:%S.") .. string.format("%03d", (GetTime() % 1) * 1000)))
+    end
+end
+
+local function HandleChannelStart(unit, _, spellId)
+    if unit ~= "player" then return end
+    local name = SpellNameForId(spellId)
+    KSBT.CastHistory:Push(spellId, name, GetTime())
+
+    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+        KSBT.DebugLog:Add(2, "gray",
+            string.format("Channel: %s #%d at %s",
+                name or "?", spellId, date("%H:%M:%S.") .. string.format("%03d", (GetTime() % 1) * 1000)))
+    end
 end
 
 ------------------------------------------------------------------------
@@ -390,9 +412,12 @@ _ucFrame:SetScript("OnEvent", function(_, _, unit, action, indicator, amount, sc
 end)
 
 -- Spell cast tracker (enriches UNIT_COMBAT with spell info)
-_spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
-    if CombatLog._enabled then
+_spellFrame:SetScript("OnEvent", function(_, event, unit, _, spellId)
+    if not CombatLog._enabled then return end
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
         pcall(HandleSpellcastSucceeded, unit, nil, spellId)
+    elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
+        pcall(HandleChannelStart, unit, nil, spellId)
     end
 end)
 
@@ -433,8 +458,10 @@ local function TryRegisterSpellcast()
     local ok = pcall(function()
         if _spellFrame.RegisterUnitEvent then
             _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+            _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
         else
             _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+            _spellFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
         end
     end)
     if ok then
