@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- TrueStrike Test Suite Entry Point
+-- Kroth Scrolling Battle Text Test Suite Entry Point
 -- Run from the tests/ directory: lua run_all.lua
 ------------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ package.path = scriptDir .. "?.lua;" .. package.path
 -- Bootstrap WoW API stubs (must happen before loading any probe modules)
 dofile(scriptDir .. "wow_stub.lua")
 
-print("TrueStrike Test Suite")
+print("Kroth Scrolling Battle Text Test Suite")
 print(string.rep("=", 40))
 
 -- Load runner as global so test files can require() it
