@@ -20,6 +20,7 @@ local T = require("runner")
 -- Run test suites
 dofile(scriptDir .. "test_outgoing.lua")
 dofile(scriptDir .. "test_incoming.lua")
+dofile(scriptDir .. "test_cast_token.lua")
 
 -- Print summary and exit with appropriate code
 T.summary()

@@ -349,12 +349,15 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
                 spellName = _lastCastSpellName
             end
         else
-            -- Midnight path: spell-cast correlation (400ms window).
-            -- Reject if no recent player cast — event is either an
-            -- auto-attack or another player's damage.
-            if not _lastCastTime or (now - _lastCastTime) > 0.4 then return end
-            spellId   = _lastCastSpellId
-            spellName = _lastCastSpellName
+            -- Midnight path: cast-consume token model.
+            -- Reject if no token available — event was not caused by the player's cast
+            -- (auto-attack, pet, or another player in the group).
+            local mgr = KSBT.Parser and KSBT.Parser.CastTokenManager
+            if not mgr then return end
+            local tok = mgr:ConsumeToken(school)
+            if not tok then return end
+            spellId   = tok.spellId
+            spellName = tok.spellName
         end
 
         EmitOutgoing({
@@ -382,6 +385,12 @@ local function HandleSpellcastSucceeded(unit, _, spellId)
     _lastCastSpellId   = spellId
     _lastCastSpellName = SpellNameForId(spellId)
     _lastCastTime      = GetTime()
+
+    -- Push a cast token for Midnight attribution (school deferred — unknown at cast time).
+    local mgr = KSBT.Parser and KSBT.Parser.CastTokenManager
+    if mgr then
+        mgr:PushToken(spellId, _lastCastSpellName, nil)
+    end
 end
 
 ------------------------------------------------------------------------
@@ -458,6 +467,20 @@ else
     _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 end
 Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
+
+------------------------------------------------------------------------
+-- Public handler wrappers (used by integration tests in Suite 8).
+------------------------------------------------------------------------
+function CombatLog:HandleUnitCombat(unit, action, indicator, amount, school)
+    local ok, err = pcall(HandleUnitCombat, unit, action, indicator, amount, school)
+    if not ok then
+        Debug(2, "Parser.CombatLog: HandleUnitCombat error: " .. tostring(err))
+    end
+end
+
+function CombatLog:HandleSpellcastSucceeded(unit, arg2, spellId)
+    pcall(HandleSpellcastSucceeded, unit, arg2, spellId)
+end
 
 ------------------------------------------------------------------------
 -- Enable / Disable

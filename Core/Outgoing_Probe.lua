@@ -64,6 +64,31 @@ end
 
 -- Spell filter: per-character whitelist/blacklist with auto-discovery.
 -- Returns: "auto" (use thresholds), "show" (whitelist), "hide" (blacklist), or nil (no spellId)
+
+-- Cap on auto-discovered entries to prevent saved-variable bloat over long play sessions.
+-- User-configured entries (show/hide) are never pruned.
+local SPELL_FILTER_MAX = 500
+local SPELL_FILTER_PRUNE_TARGET = 400  -- prune down to this count when cap is exceeded
+
+local function PruneSpellFilters(filters)
+    -- Count total entries and collect auto-mode keys for eviction candidates.
+    local total = 0
+    local autoCandidates = {}
+    for k, v in pairs(filters) do
+        total = total + 1
+        if v.mode == "auto" or v.mode == nil then
+            autoCandidates[#autoCandidates + 1] = k
+        end
+    end
+    if total <= SPELL_FILTER_MAX then return end
+
+    -- Remove auto entries until we reach the prune target.
+    local toRemove = total - SPELL_FILTER_PRUNE_TARGET
+    for i = 1, math.min(toRemove, #autoCandidates) do
+        filters[autoCandidates[i]] = nil
+    end
+end
+
 function KSBT.GetSpellFilterMode(spellId, spellName, kind)
     if not spellId or spellId == 0 then return nil end
     local charDb = KSBT.db and KSBT.db.char
@@ -72,7 +97,9 @@ function KSBT.GetSpellFilterMode(spellId, spellName, kind)
     local key = tostring(spellId)
     local entry = charDb.spellFilters[key]
     if not entry then
-        -- First time seeing this spell — auto-discover
+        -- First time seeing this spell — auto-discover.
+        -- Prune excess auto entries before adding to keep saved-variable size bounded.
+        PruneSpellFilters(charDb.spellFilters)
         local name = spellName
         if (not name or name == "") and C_Spell and C_Spell.GetSpellInfo then
             local info = C_Spell.GetSpellInfo(spellId)
