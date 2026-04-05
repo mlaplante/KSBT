@@ -54,6 +54,12 @@ The minimap button also provides quick access:
 
 ---
 
+## Documentation
+
+**Docs:** https://www.mintlify.com/mlaplante/KSBT
+
+---
+
 ## Repository
 
 **GitHub:** https://github.com/mlaplante/KSBT
