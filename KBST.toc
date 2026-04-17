@@ -4,6 +4,7 @@
 ## Author: Kroth Haomarush
 ## Version: 2.0.0
 ## SavedVariables: KrothSBTDB
+## SavedVariablesPerCharacter: KSBT_SpellFingerprints
 ## OptionalDeps: Ace3, ElvUI, LibSharedMedia-3.0
 
 # Snapshot existing lib wrappers before our bundled Ace3 loads
@@ -31,6 +32,8 @@ Core\SpellData.lua
 Core\Defaults.lua
 Core\Init.lua
 Core\Diagnostics.lua
+Core\SpellFingerprints.lua
+Core\SpellMatcher.lua
 
 # Core (Decision / Coordination) - Skeletons
 Core\Core.lua
@@ -44,6 +47,7 @@ Core\Combat_Decide.lua
 
 # Parser (Detection)
 Parser\Normalize.lua
+Parser\CastHistory.lua
 Parser\CombatLog_Detect.lua
 Parser\Cooldowns_Detect.lua
 
@@ -51,3 +55,4 @@ Parser\Cooldowns_Detect.lua
 UI\ConfigTabs.lua
 UI\Config.lua
 UI\ScrollAreaFrames.lua
+UI\DebugFrame.lua

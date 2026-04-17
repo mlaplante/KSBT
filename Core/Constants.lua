@@ -83,6 +83,23 @@ KSBT.SCHOOL_FROST    = 0x10
 KSBT.SCHOOL_SHADOW   = 0x20
 KSBT.SCHOOL_ARCANE   = 0x40
 
+-- ── Spell Learning System ──────────────────────────────────
+KSBT.CAST_HISTORY_SIZE      = 20     -- max entries in cast buffer
+KSBT.CAST_EXPIRY_SECONDS    = 3.0    -- seconds before a cast expires
+KSBT.FINGERPRINT_MATURITY   = 10     -- observations before damage range scoring
+KSBT.CONFIDENCE_THRESHOLD_MATCH = 0.65  -- minimum score to label
+KSBT.CONFIDENCE_MARGIN_MATCH    = 0.15  -- minimum gap vs runner-up
+KSBT.EMA_ALPHA              = 0.1    -- EMA smoothing factor (after warmup)
+KSBT.EMA_WARMUP_COUNT       = 5      -- use simple avg for first N samples
+KSBT.MAX_FINGERPRINTS       = 200    -- max fingerprints per character
+KSBT.SCHEMA_VERSION         = 1      -- fingerprint schema version
+
+-- Bayesian signal weights
+KSBT.WEIGHT_DAMAGE_RANGE    = 0.40
+KSBT.WEIGHT_CAST_TIMING     = 0.30
+KSBT.WEIGHT_CRIT_CONSISTENCY = 0.15
+KSBT.WEIGHT_CAST_ORDER      = 0.15
+
 ------------------------------------------------------------------------
 -- Color Scheme: "Strike Silver"
 ------------------------------------------------------------------------

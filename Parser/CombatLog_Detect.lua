@@ -108,9 +108,8 @@ local _lastCLEUOutgoing = 0
 local _cleuOutgoingMark = false
 
 -- Last spell cast tracker (for UNIT_COMBAT which lacks spellId).
-local _lastCastSpellId   = nil
-local _lastCastSpellName = nil
-local _lastCastTime      = 0
+-- Cast history is managed by KSBT.CastHistory (Parser/CastHistory.lua)
+-- Legacy single-cast tracking removed in favor of rolling buffer
 
 local function HandleCLEU()
     if not GetCombatLogInfo then return end
@@ -186,13 +185,14 @@ local function HandleCLEU()
         local isPeriodic = (subevent == "SPELL_PERIODIC_DAMAGE")
 
         if isOutgoing then
+            local isCrit = IsCrit(critical)
             EmitOutgoing({
                 ts         = now,
                 kind       = "damage",
                 amount     = amount,
                 isSecret   = secret,
                 isAuto     = false,
-                isCrit     = IsCrit(critical),
+                isCrit     = isCrit,
                 isPeriodic = isPeriodic,
                 spellId    = spellId,
                 spellName  = spellName or SpellNameForId(spellId),
@@ -200,6 +200,28 @@ local function HandleCLEU()
                 destFlags  = destFlags,
                 targetName = destName,
             })
+
+                -- Record observation for spell learning
+                if KSBT.SpellFingerprints then
+                    local castDelay
+                    local castEntry = KSBT.CastHistory:FindMostRecentCast(spellId, now)
+                    if castEntry then
+                        castDelay = now - castEntry.timestamp
+                    end
+                    KSBT.SpellFingerprints:RecordObservation(
+                        spellId, spellName, amount, isCrit, isPeriodic, spellSchool or school or 1, castDelay)
+
+                    -- Debug log (level 2)
+                    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+                        KSBT.DebugLog:Add(2, "green",
+                            string.format("Learned: %s #%d — %s%s [sample #%d]",
+                                spellName or "?", spellId,
+                                tostring(amount),
+                                isCrit and " (crit)" or "",
+                                KSBT.SpellFingerprints:Get(spellId)
+                                    and KSBT.SpellFingerprints:Get(spellId).sampleCount or 1))
+                    end
+                end
         end
         if isIncoming then
             EmitIncoming({
@@ -333,44 +355,57 @@ local function HandleUnitCombat(unit, action, indicator, amount, school)
         -- set by HandleCLEU when source flags match the player.
         --
         -- CLEU unavailable (Midnight): use spell-cast correlation — only
-        -- accept the event if UNIT_SPELLCAST_SUCCEEDED fired within 400ms.
+        -- accept the event if a player cast fired within 400ms.
         -- This means auto-attacks are skipped (no cast event), but all
         -- spell/ability damage is attributed correctly.
-        local spellId, spellName
 
         if CombatLog._cleuRegistered then
             -- CLEU path: strict flag-based attribution
             if not _cleuOutgoingMark then return end
             _cleuOutgoingMark = false
-
-            -- Attach last-cast spell info if recent enough (1.5s window).
-            if _lastCastTime and (now - _lastCastTime) < 1.5 then
-                spellId   = _lastCastSpellId
-                spellName = _lastCastSpellName
-            end
         else
             -- Midnight path: spell-cast correlation (400ms window).
             -- Reject if no recent player cast — event is either an
             -- auto-attack or another player's damage.
-            if not _lastCastTime or (now - _lastCastTime) > 0.4 then return end
-            spellId   = _lastCastSpellId
-            spellName = _lastCastSpellName
+            local recentCast = false
+            if KSBT.CastHistory then
+                local candidates = KSBT.CastHistory:GetCandidates(now, nil)
+                for _, entry in ipairs(candidates) do
+                    if (now - entry.timestamp) <= 0.4 then
+                        recentCast = true
+                        break
+                    end
+                end
+            end
+            if not recentCast then return end
         end
 
-        EmitOutgoing({
+        local evt = {
             ts         = now,
             kind       = kind,
             amount     = amount,
             isSecret   = secret,
-            isAuto     = (spellId == nil),
+            isAuto     = true,
             isCrit     = isCrit,
             isPeriodic = false,
-            spellId    = spellId,
-            spellName  = spellName,
+            spellId    = nil,
+            spellName  = nil,
             schoolMask = school or 1,
             destFlags  = nil,
             targetName = nil,
-        })
+        }
+
+        -- Attempt spell attribution via learning system (damage only, not heals)
+        if not evt.spellId and evt.kind == "damage" then
+            local matchId, matchName, confidence = KSBT.SpellMatcher:Match(
+                evt.amount, evt.schoolMask, evt.isCrit, evt.isPeriodic, now)
+            if matchId then
+                evt.spellId   = matchId
+                evt.spellName = matchName
+            end
+        end
+
+        EmitOutgoing(evt)
     end
 end
 
@@ -379,9 +414,27 @@ end
 ------------------------------------------------------------------------
 local function HandleSpellcastSucceeded(unit, _, spellId)
     if unit ~= "player" then return end
-    _lastCastSpellId   = spellId
-    _lastCastSpellName = SpellNameForId(spellId)
-    _lastCastTime      = GetTime()
+    local name = SpellNameForId(spellId)
+    KSBT.CastHistory:Push(spellId, name, GetTime())
+
+    -- Debug log (level 2 = observations + cast tracking)
+    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+        KSBT.DebugLog:Add(2, "gray",
+            string.format("Cast: %s #%d at %s",
+                name or "?", spellId, date("%H:%M:%S.") .. string.format("%03d", (GetTime() % 1) * 1000)))
+    end
+end
+
+local function HandleChannelStart(unit, _, spellId)
+    if unit ~= "player" then return end
+    local name = SpellNameForId(spellId)
+    KSBT.CastHistory:Push(spellId, name, GetTime())
+
+    if KSBT.DebugLog and KSBT.DebugLog:GetLevel() >= 2 then
+        KSBT.DebugLog:Add(2, "gray",
+            string.format("Channel: %s #%d at %s",
+                name or "?", spellId, date("%H:%M:%S.") .. string.format("%03d", (GetTime() % 1) * 1000)))
+    end
 end
 
 ------------------------------------------------------------------------
@@ -409,9 +462,12 @@ _ucFrame:SetScript("OnEvent", function(_, _, unit, action, indicator, amount, sc
 end)
 
 -- Spell cast tracker (enriches UNIT_COMBAT with spell info)
-_spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellId)
-    if CombatLog._enabled then
+_spellFrame:SetScript("OnEvent", function(_, event, unit, _, spellId)
+    if not CombatLog._enabled then return end
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
         pcall(HandleSpellcastSucceeded, unit, nil, spellId)
+    elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
+        pcall(HandleChannelStart, unit, nil, spellId)
     end
 end)
 
@@ -451,11 +507,13 @@ else
 end
 CombatLog._ucRegistered = true
 
--- UNIT_SPELLCAST_SUCCEEDED: register directly at load time.
+-- UNIT_SPELLCAST_SUCCEEDED + CHANNEL_START: register directly at load time.
 if _spellFrame.RegisterUnitEvent then
     _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    _spellFrame:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 else
     _spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    _spellFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 end
 Debug(1, "Parser.CombatLog: UNIT_SPELLCAST_SUCCEEDED registered")
 
