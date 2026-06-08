@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Minimal test runner for TrueStrike unit tests.
+-- Minimal test runner for Kroth Scrolling Battle Text unit tests.
 -- Usage: local T = require("runner")
 --        T.test("my test", function() T.eq(1, 1) end)
 --        T.summary()

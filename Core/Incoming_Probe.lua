@@ -263,9 +263,12 @@ function Probe:OnIncomingDetected(evt)
         if self.cap.hasFlagText == nil and type(evt.flagText) == "string" and
             evt.flagText ~= "" then self.cap.hasFlagText = true end
         if self.cap.hasSchool == nil and type(evt.schoolMask) == "number" and
+            not (issecretvalue and issecretvalue(evt.schoolMask)) and
             evt.schoolMask > 0 then self.cap.hasSchool = true end
 
-        if type(evt.schoolMask) == "number" and evt.schoolMask > 0 then
+        if type(evt.schoolMask) == "number" and
+           not (issecretvalue and issecretvalue(evt.schoolMask)) and
+           evt.schoolMask > 0 then
             if not self._seenSchoolMasks[evt.schoolMask] then
                 self._seenSchoolMasks[evt.schoolMask] = true
                 self._seenSchoolsList[#self._seenSchoolsList + 1] =
@@ -341,7 +344,8 @@ function Probe:ProcessIncomingEvent(evt, isReplay)
         text = text .. "!"
     end
 
-    if not color and prof.useSchoolColors and type(evt.schoolMask) == "number" then
+    if not color and prof.useSchoolColors and type(evt.schoolMask) == "number" and
+       not (issecretvalue and issecretvalue(evt.schoolMask)) then
         color = SchoolColorFromMask(evt.schoolMask)
     end
 

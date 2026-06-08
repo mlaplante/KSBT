@@ -44,6 +44,7 @@ Core\Combat_Decide.lua
 
 # Parser (Detection)
 Parser\Normalize.lua
+Parser\CastTokenManager.lua
 Parser\CombatLog_Detect.lua
 Parser\Cooldowns_Detect.lua
 
